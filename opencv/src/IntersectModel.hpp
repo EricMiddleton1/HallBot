@@ -4,6 +4,7 @@
 
 
 struct Line : public GRANSAC::AbstractParameter {
+  Line();
   Line(float a, float b, float c);
 
   float a, b, c;
@@ -16,6 +17,8 @@ struct Point {
   Point(float x, float y);
 
   operator bool() const;
+
+  float distanceTo(const Point& other) const;
 };
 
 class IntersectModel : public GRANSAC::AbstractModel<2> {
@@ -37,5 +40,6 @@ private:
 
   static Point findIntersection(const Line& l0, const Line& l1);
 
+  Line line1, line2;
   Point intersection;
 };

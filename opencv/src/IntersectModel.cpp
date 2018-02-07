@@ -2,6 +2,10 @@
 
 #include <limits>
 #include <cmath>
+#include <iostream>
+
+Line::Line() {
+}
 
 Line::Line(float _a, float _b, float _c)
   : a{_a}
@@ -24,6 +28,12 @@ Point::operator bool() const {
     (y != std::numeric_limits<float>::infinity());
 }
 
+float Point::distanceTo(const Point& other) const {
+  auto dx = x - other.x,
+    dy = y - other.y;
+
+  return std::sqrt(dx*dx + dy*dy);
+}
 
 IntersectModel::IntersectModel(
   const std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>& params) {
@@ -38,26 +48,31 @@ void IntersectModel::Initialize(
     throw std::runtime_error("IntersectModel: Number of input parameters should be 2");
   }
 
-  auto line1 = std::dynamic_pointer_cast<Line>(params[0]),
-    line2 = std::dynamic_pointer_cast<Line>(params[1]);
-  if(line1 == nullptr || line2 == nullptr) {
+  auto pl1 = std::dynamic_pointer_cast<Line>(params[0]),
+    pl2 = std::dynamic_pointer_cast<Line>(params[1]);
+  if(pl1 == nullptr || pl2 == nullptr) {
     throw std::runtime_error("IntersectModel: params type mismatch (should be Line)");
   }
+  line1 = *pl1;
+  line2 = *pl2;
 
   std::copy(params.begin(), params.end(), m_MinModelParams.begin());
 
-  intersection = findIntersection(*line1, *line2);
+  intersection = findIntersection(line1, line2);
 }
 
 std::pair<GRANSAC::VPFloat, std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>>
   IntersectModel::Evaluate(
     const std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>& params,
     GRANSAC::VPFloat threshold) {
-
+  
   std::vector<std::shared_ptr<GRANSAC::AbstractParameter>> inliers;
-  for(const auto& param : params) {
-    if(ComputeDistanceMeasure(param) < threshold) {
-      inliers.push_back(param);
+  
+  if(intersection) {
+    for(const auto& param : params) {
+      if(ComputeDistanceMeasure(param) < threshold) {
+        inliers.push_back(param);
+      }
     }
   }
 
@@ -80,10 +95,13 @@ GRANSAC::VPFloat IntersectModel::ComputeDistanceMeasure(
       "Invalid parameter");
   }
 
-  //Distance from line to model intersect point
-  //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
-  return std::abs(line->a*intersection.x + line->b*intersection.y + line->c) /
-    std::sqrt((line->a * line->a) + (line->b * line->b));
+  auto ip1 = findIntersection(line1, *line),
+    ip2 = findIntersection(line2, *line);
+
+  float d1 = ip1.distanceTo(intersection),
+    d2 = ip2.distanceTo(intersection);
+
+  return std::min(d1, d2);
 }
 
 Point IntersectModel::findIntersection(const Line& l0, const Line& l1) {
