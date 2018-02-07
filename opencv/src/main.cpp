@@ -10,12 +10,17 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "GRANSAC.hpp"
+#include "IntersectModel.hpp"
+
 using namespace cv;
 using namespace std;
 
-using Line = pair<Point, Point>;
+using P_Line = pair<cv::Point, cv::Point>;
 
 /// Global variables
+
+GRANSAC::RANSAC<IntersectModel,2> estimator;
 
 /** General variables */
 Mat src, edges;
@@ -35,7 +40,7 @@ int s_theta_trackbar = min_theta_trackbar;
 /// Function Headers
 void help();
 void Standard_Hough( int, void* );
-Vec2f intersectionPoint(const vector<Line>& inLines);
+Vec2f intersectionPoint(const vector<P_Line>& inLines);
 
 /**
  * @function main
@@ -64,6 +69,8 @@ int main( int argc, char** argv )
    /// Create Trackbars for Thresholds
    char thresh_label[50];
    sprintf( thresh_label, "Thres: %d + input", min_threshold );
+
+   estimator.Initialize(200, 100);
 
    namedWindow( standard_name, WINDOW_AUTOSIZE );
    createTrackbar( thresh_label, standard_name, &s_trackbar, max_trackbar,
@@ -96,7 +103,7 @@ void help()
 void Standard_Hough( int, void* )
 {
   vector<Vec2f> s_lines;
-  vector<Line> pointLines;
+  vector<P_Line> pointLines;
   cvtColor( edges, standard_hough, COLOR_GRAY2BGR );
 
   /// 1. Use Standard Hough Transform
@@ -116,8 +123,8 @@ void Standard_Hough( int, void* )
       double x0 = r*cos_t, y0 = r*sin_t;
       double alpha = 1000;
 
-       Point pt1( cvRound(x0 + alpha*(-sin_t)), cvRound(y0 + alpha*cos_t) );
-       Point pt2( cvRound(x0 - alpha*(-sin_t)), cvRound(y0 - alpha*cos_t) );
+       cv::Point pt1( cvRound(x0 + alpha*(-sin_t)), cvRound(y0 + alpha*cos_t) );
+       cv::Point pt2( cvRound(x0 - alpha*(-sin_t)), cvRound(y0 - alpha*cos_t) );
         
        pointLines.emplace_back(pt1, pt2);
 
@@ -135,48 +142,33 @@ void Standard_Hough( int, void* )
    imshow( standard_name, standard_hough );
 }
 
-Vec2f intersectionPoint(const vector<Line>& inLines) {
+Vec2f intersectionPoint(const vector<P_Line>& inLines) {
   struct LineParam {
     float a, b, c;
   };
 
   Vec2f point(0.f, 0.f);
-  int count = 0;
 
-  vector<LineParam> pLines;
-  pLines.reserve(inLines.size());
+  vector<shared_ptr<GRANSAC::AbstractParameter>> lines;
+  lines.reserve(inLines.size());
   for(auto& line : inLines) {
     float a = line.second.y - line.first.y;
     float b = line.first.x - line.second.x;
     float c = b*line.first.y + a*line.first.x;
 
-    pLines.push_back({a, b, c});
+    lines.push_back(make_shared<Line>(a, b, c));
   }
 
-  for(int i = 0; i < pLines.size(); ++i) {
-    const auto& l0 = pLines[i];
-    for(int j = i+1; j < pLines.size(); ++j) {
-      const auto& l1 = pLines[j];
-      
-      float det = l0.a*l1.b - l1.a*l0.b;
-      if(det != 0) {
-        float x = (l1.b*l0.c - l0.b*l1.c) / det;
-        float y = (l0.a*l1.c - l1.a*l0.c) / det;
+  estimator.Estimate(lines);
+  auto bestModel = estimator.GetBestModel();
+  if(bestModel) {
+    auto intersectionPoint = bestModel->getIntersectionPoint();
 
-        point[0] += x;
-        point[1] += y;
-
-        count++;
-      }
-    }
-  }
-
-  if(count == 0) {
-    throw std::runtime_error("intersectionPoint: No intersections found");
+    point[0] = intersectionPoint.x;
+    point[1] = intersectionPoint.y;
   }
   else {
-    point[0] /= count;
-    point[1] /= count;
+    throw std::runtime_error("intersectionPoint: No intersections found");
   }
 
   return point;
