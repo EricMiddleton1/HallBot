@@ -59,6 +59,7 @@ void IntersectModel::Initialize(
   std::copy(params.begin(), params.end(), m_MinModelParams.begin());
 
   intersection = findIntersection(line1, line2);
+  intersectionAvg = intersection;
 }
 
 std::pair<GRANSAC::VPFloat, std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>>
@@ -70,8 +71,32 @@ std::pair<GRANSAC::VPFloat, std::vector<std::shared_ptr<GRANSAC::AbstractParamet
   
   if(intersection) {
     for(const auto& param : params) {
-      if(ComputeDistanceMeasure(param) < threshold) {
+      auto line = std::dynamic_pointer_cast<Line>(param);
+      if(line == nullptr) {
+        throw std::runtime_error("IntersectModel::Evaluate() Invalid parameter");
+      }
+
+      auto ip1 = findIntersection(line1, *line),
+        ip2 = findIntersection(line2, *line);
+
+      float d1 = ip1.distanceTo(intersection),
+        d2 = ip2.distanceTo(intersection);
+      
+      if(std::min(d1, d2) < threshold) {
         inliers.push_back(param);
+        
+        if(d1 == d2) {
+          intersectionAvg.x = (intersectionAvg.x + ip1.x + ip2.x)/3.f;
+          intersectionAvg.y = (intersectionAvg.y + ip1.y + ip2.y)/3.f;
+        }
+        else if(d1 < d2) {
+          intersectionAvg.x = (intersectionAvg.x + ip1.x)/2.f;
+          intersectionAvg.y = (intersectionAvg.y + ip1.y)/2.f;
+        }
+        else {
+          intersectionAvg.x = (intersectionAvg.x + ip2.x)/2.f;
+          intersectionAvg.y = (intersectionAvg.y + ip2.y)/2.f;
+        }
       }
     }
   }
@@ -86,22 +111,15 @@ Point IntersectModel::getIntersectionPoint() const {
   return intersection;
 }
 
+Point IntersectModel::getIntersectionPointAvg() const {
+  return intersectionAvg;
+}
+
 GRANSAC::VPFloat IntersectModel::ComputeDistanceMeasure(
-  std::shared_ptr<GRANSAC::AbstractParameter> param) {
+  std::shared_ptr<GRANSAC::AbstractParameter> param [[gnu::unused]]) {
 
-  auto line = std::dynamic_pointer_cast<Line>(param);
-  if(line == nullptr) {
-    throw std::runtime_error("IntersectModel::ComputeDistanceMeasure() "
-      "Invalid parameter");
-  }
-
-  auto ip1 = findIntersection(line1, *line),
-    ip2 = findIntersection(line2, *line);
-
-  float d1 = ip1.distanceTo(intersection),
-    d2 = ip2.distanceTo(intersection);
-
-  return std::min(d1, d2);
+  throw std::runtime_error("IntersectMethod::ComputeDistanceMeasure(): "
+    "Unimplemented method");
 }
 
 Point IntersectModel::findIntersection(const Line& l0, const Line& l1) {

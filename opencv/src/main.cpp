@@ -5,9 +5,13 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 
 #include "GRANSAC.hpp"
 #include "IntersectModel.hpp"
+
+#include "iRobot.hpp"
+#include "PID.hpp"
 
 using namespace cv;
 using namespace std;
@@ -23,15 +27,20 @@ const int max_theta_trackbar = 180;
 const int max_ransac_threshold = 500;
 const int max_ransac_iterations = 1000;
 
-int s_trackbar = 60;
-int s_theta_trackbar = 10;
+const int TARGET_FRAME_HEIGHT = 480;
+
+const string PORT = "/dev/ttyUSB0";
+
+int s_trackbar = 28; //60
+int v_theta_trackbar = 10;
+int h_theta_trackbar = 5;
 int ransac_threshold_trackbar = 10;
 int ransac_iterations_trackbar = 100;
 
 void printHelp(const string& str);
 void updateRansac(int, void*);
-cv::Point detectVanishingPoint(const Mat& edges, Mat& hough);
-cv::Point intersectionPoint(const vector<P_Line>& inLines);
+cv::Point detectVanishingPoint(const Mat& edges, Mat& hough, cv::Point& avgPoint);
+cv::Point intersectionPoint(const vector<P_Line>& inLines, cv::Point& avgPoint);
 
 int main( int argc, char** argv )
 {
@@ -65,13 +74,31 @@ int main( int argc, char** argv )
     }
   }
 
+  float hallwayX = 0.5f;
+  PID steerPID{200.f, 0.f, 100.f};
+  steerPID.set(0.5f);
+  
+  boost::asio::io_service ioService;
+  boost::asio::io_service::work ioWork(ioService);
+  
+  iRobot bot{ioService, PORT};
+  bot.start();
+  this_thread::sleep_for(chrono::milliseconds(100));
+
+  std::thread botThread([&ioService]() {
+    ioService.run();
+    std::cerr << "[Error] ioService thread exit" << std::endl;
+  });
+
   namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
   namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
 
   createTrackbar("Hough Threshold", DEBUG_WINDOW_NAME, &s_trackbar, max_trackbar,
     nullptr);
-  createTrackbar("Angle Threshold (degrees)", DEBUG_WINDOW_NAME, &s_theta_trackbar,
-    max_theta_trackbar, nullptr);
+  createTrackbar("Vertical Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
+    &v_theta_trackbar, max_theta_trackbar, nullptr);
+  createTrackbar("Horizontal Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
+    &h_theta_trackbar, max_theta_trackbar, nullptr);
   createTrackbar("RANSAC Threshold", DEBUG_WINDOW_NAME, &ransac_threshold_trackbar,
     max_ransac_threshold, updateRansac);
   createTrackbar("RANSAC Max Iterations", DEBUG_WINDOW_NAME, &ransac_iterations_trackbar,
@@ -80,7 +107,7 @@ int main( int argc, char** argv )
   updateRansac(0, 0);
 
   while(waitKey(10) == -1) {
-    Mat frame, frame_gray, frame_edges, frame_hough;
+    Mat frame, resized, frame_gray, frame_edges, frame_hough;
     cap >> frame;
 
     if(frame.empty()) {
@@ -90,19 +117,42 @@ int main( int argc, char** argv )
       continue;
     }
 
-    cvtColor(frame, frame_gray, COLOR_RGB2GRAY);
+    auto frameSize = frame.size();
+    if(frameSize.height > TARGET_FRAME_HEIGHT) {
+      float aspectRatio = static_cast<float>(frameSize.width) / frameSize.height;
+      frameSize = Size(TARGET_FRAME_HEIGHT*aspectRatio, TARGET_FRAME_HEIGHT);
+      resize(frame, resized, frameSize, 0, 0, INTER_CUBIC);
+    }
+    else {
+      resized = frame;
+    }
+
+    cvtColor(resized, frame_gray, COLOR_RGB2GRAY);
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
     try {
-      auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough);
-      circle(frame, vanishingPoint, 50, Scalar(0, 0, 255),
+      cv::Point avgPoint;
+      auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough, avgPoint);
+
+      auto curX = static_cast<float>(vanishingPoint.x) / frameSize.width;
+      hallwayX = 0.5f*curX + 0.5f*hallwayX;
+      auto actuation = steerPID.update(hallwayX, 0.015);
+
+      circle(resized, {hallwayX*frameSize.width, vanishingPoint.y}, 15,
+        Scalar(0, 0, 255), -1);
+      circle(resized, vanishingPoint, 15, Scalar(255, 0, 0),
         -1);
+
+      std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
+        << actuation << std::endl;
+
+      bot.setWheels(50 - actuation, 50 + actuation);
     }
     catch(const exception& e) {
-    
+      bot.setWheels(0, 0);
     }
 
-    imshow(WINDOW_NAME, frame);
+    imshow(WINDOW_NAME, resized);
     imshow(DEBUG_WINDOW_NAME, frame_hough);
   }
   
@@ -118,7 +168,7 @@ void updateRansac(int, void*) {
   estimator.Initialize(ransac_threshold_trackbar, ransac_iterations_trackbar);
 }
 
-cv::Point detectVanishingPoint(const Mat& edges, Mat& hough) {
+cv::Point detectVanishingPoint(const Mat& edges, Mat& hough, cv::Point& avgPoint) {
   cv::Point vanishingPoint{0, 0};
 
   vector<Vec2f> s_lines;
@@ -129,9 +179,10 @@ cv::Point detectVanishingPoint(const Mat& edges, Mat& hough) {
 
   for(size_t i = 0; i < s_lines.size(); i++ ) {
     float r = s_lines[i][0], t = s_lines[i][1];
-    float rad_min = s_theta_trackbar * CV_PI/180;
+    float v_rad = v_theta_trackbar * CV_PI/180,
+      h_rad = h_theta_trackbar * CV_PI/180;
 
-    if( (t < rad_min) || (t > (CV_PI - rad_min)) ) {
+    if( (t < v_rad) || (t > (CV_PI - v_rad)) || (std::abs(t - CV_PI/2) < h_rad) ) {
       continue;
     }
 
@@ -147,14 +198,16 @@ cv::Point detectVanishingPoint(const Mat& edges, Mat& hough) {
     line(hough, pt1, pt2, Scalar(255,0,0), 2, LINE_AA);
   }
 
-  vanishingPoint = intersectionPoint(pointLines);
-  circle(hough, vanishingPoint, 50, Scalar(0, 0, 255),
+  vanishingPoint = intersectionPoint(pointLines, avgPoint);
+  circle(hough, avgPoint, 50, Scalar(0, 0, 255),
+    -1);
+  circle(hough, vanishingPoint, 15, Scalar(255, 0, 0),
     -1);
 
   return vanishingPoint;
 }
 
-cv::Point intersectionPoint(const vector<P_Line>& inLines) {
+cv::Point intersectionPoint(const vector<P_Line>& inLines, cv::Point& avgPoint) {
   struct LineParam {
     float a, b, c;
   };
@@ -175,9 +228,13 @@ cv::Point intersectionPoint(const vector<P_Line>& inLines) {
   auto bestModel = estimator.GetBestModel();
   if(bestModel) {
     auto intersectionPoint = bestModel->getIntersectionPoint();
+    auto avgIntersectionPoint = bestModel->getIntersectionPointAvg();
 
     point[0] = intersectionPoint.x;
     point[1] = intersectionPoint.y;
+
+    avgPoint.x = cvRound(avgIntersectionPoint.x);
+    avgPoint.y = cvRound(avgIntersectionPoint.y);
   }
   else {
     throw std::runtime_error("intersectionPoint: No intersections found");

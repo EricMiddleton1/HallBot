@@ -8,7 +8,7 @@ SRC_EXT = cpp
 # Path to the source directory, relative to the makefile
 SRC_PATH = src
 # Space-separated pkg-config libraries used by this project
-LIBS =
+LIBS = 
 # General compiler flags
 COMPILE_FLAGS = -std=c++14 -Wall -Wextra -pedantic -fopenmp -g
 # Additional release-specific flags
@@ -18,7 +18,7 @@ DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
 INCLUDES = -I $(SRC_PATH) -IGRANSAC/include `pkg-config --cflags opencv`
 # General linker settings
-LINK_FLAGS = `pkg-config --libs opencv` -fopenmp
+LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system
 # Additional release-specific linker settings
 RLINK_FLAGS =
 # Additional debug-specific linker settings

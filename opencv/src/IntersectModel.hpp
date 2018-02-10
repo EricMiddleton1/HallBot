@@ -33,6 +33,7 @@ public:
       GRANSAC::VPFloat threshold) override;
 
   Point getIntersectionPoint() const;
+  Point getIntersectionPointAvg() const;
 
 private:
   GRANSAC::VPFloat ComputeDistanceMeasure(std::shared_ptr<GRANSAC::AbstractParameter>
@@ -41,5 +42,5 @@ private:
   static Point findIntersection(const Line& l0, const Line& l1);
 
   Line line1, line2;
-  Point intersection;
+  Point intersection, intersectionAvg;
 };
