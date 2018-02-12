@@ -47,7 +47,7 @@ cv::Point intersectionPoint(const vector<P_Line>& inLines, cv::Point& avgPoint);
 int main( int argc, char** argv )
 {
   const string WINDOW_NAME = "Vanishing Point Detector";
-  //const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
+  const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
   
   if(argc < 2) {
     printHelp(argv[0]);
@@ -79,16 +79,11 @@ int main( int argc, char** argv )
     camera.set(CV_CAP_PROP_BRIGHTNESS, 50);
     camera.set(CV_CAP_PROP_GAIN, 100);
     camera.set(CV_CAP_PROP_CONTRAST, std::stoi(argv[2]));
-    if(!camera.isOpened()) {
+    if(!camera.open()) {
 	    std::cerr << "[Error] Failed to open raspberry pi camera" << std::endl;
       return 1;
     }
     
-    output.open(argv[3], CV_FOURCC('C','R','A','M'), 30, Size(640,480));
-    if(!output.isOpened()) {
-      std::cerr << "[Error] Failed to create video output" << std::endl;
-    }
-
     pi = true;
   }
   else {
@@ -100,9 +95,9 @@ int main( int argc, char** argv )
   }
 
   float hallwayX = 0.5f;
-  PID steerPID{200.f, 0.f, 100.f};
+  PID steerPID{200.f, 0.f, 0.f};
   steerPID.set(0.5f);
-  
+ 
   boost::asio::io_service ioService;
   boost::asio::io_service::work ioWork(ioService);
   
@@ -115,7 +110,7 @@ int main( int argc, char** argv )
   });
   
   namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
-  //namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
+  namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
 /*
   createTrackbar("Hough Threshold", DEBUG_WINDOW_NAME, &s_trackbar, max_trackbar,
     nullptr);
@@ -159,7 +154,6 @@ int main( int argc, char** argv )
       }
       cvtColor(resized, frame_gray, COLOR_RGB2GRAY);
     }
-    /*
     auto frameSize = frame_gray.size();
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
@@ -180,21 +174,16 @@ int main( int argc, char** argv )
       std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
         << actuation << std::endl;
 
-      bot.setWheels(50 - actuation, 50 + actuation);
+      bot.setWheels(100 - actuation, 100 + actuation);
     }
     catch(const exception& e) {
       bot.setWheels(0, 0);
     }
-    */
     //imshow(WINDOW_NAME, frame);
     imshow(WINDOW_NAME, frame_gray);
-    //imshow(DEBUG_WINDOW_NAME, frame_hough);
-
-    if(pi) {
-      output.write(frame_gray);
-    }
+    imshow(DEBUG_WINDOW_NAME, frame_hough);
   }
-  
+
   return 0;
 }
 
