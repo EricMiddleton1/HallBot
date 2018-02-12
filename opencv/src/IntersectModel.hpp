@@ -1,9 +1,9 @@
 #pragma once
 
-#include "AbstractModel.hpp"
+#include <array>
+#include <vector>
 
-
-struct Line : public GRANSAC::AbstractParameter {
+struct Line {
   Line();
   Line(float a, float b, float c);
 
@@ -21,26 +21,22 @@ struct Point {
   float distanceTo(const Point& other) const;
 };
 
-class IntersectModel : public GRANSAC::AbstractModel<2> {
+class IntersectModel {
 public:
-  IntersectModel(const std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>& params);
+	using Param = Line;
+	static const int ParamCount = 2;
+	
+	IntersectModel();
+  IntersectModel(const std::array<Param*,2>& params);
 
-  void Initialize(const std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>&
-    params) override;
-
-  std::pair<GRANSAC::VPFloat, std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>>
-    Evaluate(const std::vector<std::shared_ptr<GRANSAC::AbstractParameter>>& params,
-      GRANSAC::VPFloat threshold) override;
+  std::pair<double, std::vector<Param*>> Evaluate(const std::vector<Param*>& params,
+      double threshold);
 
   Point getIntersectionPoint() const;
-  Point getIntersectionPointAvg() const;
 
 private:
-  GRANSAC::VPFloat ComputeDistanceMeasure(std::shared_ptr<GRANSAC::AbstractParameter>
-    params) override;
+  static Point findIntersection(const Line* l0, const Line* l1);
 
-  static Point findIntersection(const Line& l0, const Line& l1);
-
-  Line line1, line2;
-  Point intersection, intersectionAvg;
+  Line *line1, *line2;
+  Point intersection;
 };
