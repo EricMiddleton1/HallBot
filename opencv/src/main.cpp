@@ -2,6 +2,8 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 
+#include <raspicam/raspicam_cv.h>
+
 #include <string>
 #include <iostream>
 #include <stdexcept>
@@ -31,7 +33,7 @@ const int TARGET_FRAME_HEIGHT = 480;
 
 const string PORT = "/dev/ttyUSB0";
 
-int s_trackbar = 28; //60
+int s_trackbar = 40; //60
 int v_theta_trackbar = 10;
 int h_theta_trackbar = 5;
 int ransac_threshold_trackbar = 10;
@@ -45,7 +47,7 @@ cv::Point intersectionPoint(const vector<P_Line>& inLines, cv::Point& avgPoint);
 int main( int argc, char** argv )
 {
   const string WINDOW_NAME = "Vanishing Point Detector";
-  const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
+  //const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
   
   if(argc < 2) {
     printHelp(argv[0]);
@@ -53,6 +55,9 @@ int main( int argc, char** argv )
   }
 
   VideoCapture cap;
+  VideoWriter output;
+  raspicam::RaspiCam_Cv camera;
+  bool pi = false;
   
   if(string(argv[1]) == "--webcam") {
     if(argc < 3) {
@@ -65,6 +70,26 @@ int main( int argc, char** argv )
       std::cerr << "[Error] Failed to open webcam '" << argv[2] << "'" << std::endl;
       return 1;
     }
+  }
+  else if(string(argv[1]) == "--raspberrypi") {
+    camera.set(CV_CAP_PROP_FORMAT, CV_8UC1);
+    camera.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+    camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+    camera.set(CV_CAP_PROP_EXPOSURE, 5);
+    camera.set(CV_CAP_PROP_BRIGHTNESS, 50);
+    camera.set(CV_CAP_PROP_GAIN, 100);
+    camera.set(CV_CAP_PROP_CONTRAST, std::stoi(argv[2]));
+    if(!camera.isOpened()) {
+	    std::cerr << "[Error] Failed to open raspberry pi camera" << std::endl;
+      return 1;
+    }
+    
+    output.open(argv[3], CV_FOURCC('C','R','A','M'), 30, Size(640,480));
+    if(!output.isOpened()) {
+      std::cerr << "[Error] Failed to create video output" << std::endl;
+    }
+
+    pi = true;
   }
   else {
     cap.open(argv[1]);
@@ -84,50 +109,58 @@ int main( int argc, char** argv )
   iRobot bot{ioService, PORT};
   bot.start();
   this_thread::sleep_for(chrono::milliseconds(100));
-
   std::thread botThread([&ioService]() {
     ioService.run();
     std::cerr << "[Error] ioService thread exit" << std::endl;
   });
-
+  
   namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
-  namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
-
+  //namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
+/*
   createTrackbar("Hough Threshold", DEBUG_WINDOW_NAME, &s_trackbar, max_trackbar,
     nullptr);
+  /*
   createTrackbar("Vertical Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
     &v_theta_trackbar, max_theta_trackbar, nullptr);
   createTrackbar("Horizontal Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
     &h_theta_trackbar, max_theta_trackbar, nullptr);
+  */
+  /*
   createTrackbar("RANSAC Threshold", DEBUG_WINDOW_NAME, &ransac_threshold_trackbar,
     max_ransac_threshold, updateRansac);
   createTrackbar("RANSAC Max Iterations", DEBUG_WINDOW_NAME, &ransac_iterations_trackbar,
     max_ransac_iterations, updateRansac);
-
+*/
   updateRansac(0, 0);
 
-  while(waitKey(10) == -1) {
+  while(waitKey(1) == -1) {
     Mat frame, resized, frame_gray, frame_edges, frame_hough;
-    cap >> frame;
-
-    if(frame.empty()) {
-      //Restart video
-      cap.set(CAP_PROP_POS_AVI_RATIO, 0);
-      
-      continue;
-    }
-
-    auto frameSize = frame.size();
-    if(frameSize.height > TARGET_FRAME_HEIGHT) {
-      float aspectRatio = static_cast<float>(frameSize.width) / frameSize.height;
-      frameSize = Size(TARGET_FRAME_HEIGHT*aspectRatio, TARGET_FRAME_HEIGHT);
-      resize(frame, resized, frameSize, 0, 0, INTER_CUBIC);
+    
+    if(pi) {
+      camera.grab();
+      camera.retrieve(frame_gray);
     }
     else {
-      resized = frame;
+      cap >> frame;
+      if(frame.empty()) {
+        //Restart video
+        cap.set(CAP_PROP_POS_AVI_RATIO, 0);
+        
+        continue;
+      }
+      auto frameSize = frame.size();
+      if(frameSize.height > TARGET_FRAME_HEIGHT) {
+        float aspectRatio = static_cast<float>(frameSize.width) / frameSize.height;
+        frameSize = Size(TARGET_FRAME_HEIGHT*aspectRatio, TARGET_FRAME_HEIGHT);
+        resize(frame, resized, frameSize, 0, 0, INTER_CUBIC);
+      }
+      else {
+        resized = frame;
+      }
+      cvtColor(resized, frame_gray, COLOR_RGB2GRAY);
     }
-
-    cvtColor(resized, frame_gray, COLOR_RGB2GRAY);
+    /*
+    auto frameSize = frame_gray.size();
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
     try {
@@ -135,12 +168,13 @@ int main( int argc, char** argv )
       auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough, avgPoint);
 
       auto curX = static_cast<float>(vanishingPoint.x) / frameSize.width;
-      hallwayX = 0.5f*curX + 0.5f*hallwayX;
+      hallwayX = 0.1f*curX + 0.9f*hallwayX;
       auto actuation = steerPID.update(hallwayX, 0.015);
+      actuation = std::max(-100.f, std::min(100.f, actuation));
 
-      circle(resized, {hallwayX*frameSize.width, vanishingPoint.y}, 15,
+      circle(frame_gray, {hallwayX*frameSize.width, vanishingPoint.y}, 15,
         Scalar(0, 0, 255), -1);
-      circle(resized, vanishingPoint, 15, Scalar(255, 0, 0),
+      circle(frame_gray, vanishingPoint, 15, Scalar(255, 0, 0),
         -1);
 
       std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
@@ -151,9 +185,14 @@ int main( int argc, char** argv )
     catch(const exception& e) {
       bot.setWheels(0, 0);
     }
+    */
+    //imshow(WINDOW_NAME, frame);
+    imshow(WINDOW_NAME, frame_gray);
+    //imshow(DEBUG_WINDOW_NAME, frame_hough);
 
-    imshow(WINDOW_NAME, resized);
-    imshow(DEBUG_WINDOW_NAME, frame_hough);
+    if(pi) {
+      output.write(frame_gray);
+    }
   }
   
   return 0;
