@@ -44,7 +44,7 @@ IntersectModel::IntersectModel(const std::array<Param*,ParamCount>& params)
 	intersection = findIntersection(line1, line2);
 }
 
-std::pair<double, std::vector<IntersectModel::Param*>> IntersectModel::Evaluate(
+std::vector<IntersectModel::Param*> IntersectModel::Evaluate(
 	const std::vector<Param*>& params, double threshold) {
 
   std::vector<Param*> inliers;
@@ -63,9 +63,7 @@ std::pair<double, std::vector<IntersectModel::Param*>> IntersectModel::Evaluate(
     }
   }
 
-  auto inlierFraction = static_cast<double>(inliers.size()) / params.size();
-
-  return {inlierFraction, inliers};
+  return inliers;
 }
 
 Point IntersectModel::getIntersectionPoint() const {
