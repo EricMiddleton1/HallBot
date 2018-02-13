@@ -1,7 +1,7 @@
 %% Project testbed
 
 %% Load coover hallway image
-hallway = imread('coover_hallway.jpg');
+hallway = imread('../images/coover_hallway.jpg');
 hallway_gray = rgb2gray(hallway);
 
 %% Find edges using Canny edge detector

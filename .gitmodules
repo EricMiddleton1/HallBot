@@ -1,6 +1,9 @@
 [submodule "opencv/--force"]
 	path = opencv/--force
 	url = https://github.com/drsrinathsridhar/GRANSAC
+[submodule "opencv/-f"]
+	path = opencv/-f
+	url = https://github.com/ericmiddleton1/GRANSAC
 [submodule "opencv/GRANSAC"]
 	path = opencv/GRANSAC
-	url = https://github.com/drsrinathsridhar/GRANSAC
+	url = https://github.com/ericmiddleton1/GRANSAC

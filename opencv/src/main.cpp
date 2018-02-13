@@ -20,7 +20,7 @@ using namespace std;
 
 using P_Line = pair<cv::Point, cv::Point>;
 
-GRANSAC::RANSAC<IntersectModel,2> estimator;
+GRANSAC::RANSAC<IntersectModel> estimator;
 
 const int min_threshold = 50;
 const int max_trackbar = 150;
@@ -41,8 +41,8 @@ int ransac_iterations_trackbar = 100;
 
 void printHelp(const string& str);
 void updateRansac(int, void*);
-cv::Point detectVanishingPoint(const Mat& edges, Mat& hough, cv::Point& avgPoint);
-cv::Point intersectionPoint(const vector<P_Line>& inLines, cv::Point& avgPoint);
+cv::Point detectVanishingPoint(const Mat& edges, Mat& hough);
+cv::Point intersectionPoint(const vector<P_Line>& inLines);
 
 int main( int argc, char** argv )
 {
@@ -130,6 +130,8 @@ int main( int argc, char** argv )
   updateRansac(0, 0);
 
   while(waitKey(1) == -1) {
+		int startTime = cv::getTickCount();
+
     Mat frame, resized, frame_gray, frame_edges, frame_hough;
     
     if(pi) {
@@ -159,8 +161,7 @@ int main( int argc, char** argv )
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
     try {
-      cv::Point avgPoint;
-      auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough, avgPoint);
+      auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough);
 
       auto curX = static_cast<float>(vanishingPoint.x) / frameSize.width;
       hallwayX = 0.1f*curX + 0.9f*hallwayX;
@@ -183,6 +184,12 @@ int main( int argc, char** argv )
     //imshow(WINDOW_NAME, frame);
     //imshow(WINDOW_NAME, frame_gray);
     //imshow(DEBUG_WINDOW_NAME, frame_hough);
+
+		int endTime = cv::getTickCount();
+
+		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
+			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
+
   }
 
   return 0;
@@ -197,7 +204,7 @@ void updateRansac(int, void*) {
   estimator.Initialize(ransac_threshold_trackbar, ransac_iterations_trackbar);
 }
 
-cv::Point detectVanishingPoint(const Mat& edges, Mat& hough, cv::Point& avgPoint) {
+cv::Point detectVanishingPoint(const Mat& edges, Mat& hough) {
   cv::Point vanishingPoint{0, 0};
 
   vector<Vec2f> s_lines;
@@ -227,45 +234,39 @@ cv::Point detectVanishingPoint(const Mat& edges, Mat& hough, cv::Point& avgPoint
     line(hough, pt1, pt2, Scalar(255,0,0), 2, LINE_AA);
   }
 
-  vanishingPoint = intersectionPoint(pointLines, avgPoint);
-  circle(hough, avgPoint, 50, Scalar(0, 0, 255),
-    -1);
-  circle(hough, vanishingPoint, 15, Scalar(255, 0, 0),
+  vanishingPoint = intersectionPoint(pointLines);
+  circle(hough, vanishingPoint, 15, Scalar(0, 0, 255),
     -1);
 
   return vanishingPoint;
 }
 
-cv::Point intersectionPoint(const vector<P_Line>& inLines, cv::Point& avgPoint) {
+cv::Point intersectionPoint(const vector<P_Line>& inLines) {
   struct LineParam {
     float a, b, c;
   };
 
   Vec2f point(0.f, 0.f);
 
-  vector<shared_ptr<GRANSAC::AbstractParameter>> lines;
+  vector<Line> lines;
   lines.reserve(inLines.size());
   for(auto& line : inLines) {
     float a = line.second.y - line.first.y;
     float b = line.first.x - line.second.x;
     float c = b*line.first.y + a*line.first.x;
 
-    lines.push_back(make_shared<Line>(a, b, c));
+    lines.emplace_back(a, b, c);
   }
 
   estimator.Estimate(lines);
-  auto bestModel = estimator.GetBestModel();
-  if(bestModel) {
-    auto intersectionPoint = bestModel->getIntersectionPoint();
-    auto avgIntersectionPoint = bestModel->getIntersectionPointAvg();
+  auto* bestModel = estimator.GetBestModel();
+  if(bestModel != nullptr) {
+		auto intersectionPoint = bestModel->getIntersectionPoint();
 
-    point[0] = intersectionPoint.x;
-    point[1] = intersectionPoint.y;
-
-    avgPoint.x = cvRound(avgIntersectionPoint.x);
-    avgPoint.y = cvRound(avgIntersectionPoint.y);
-  }
-  else {
+  	point[0] = intersectionPoint.x;
+	  point[1] = intersectionPoint.y;
+	}
+	else {
     throw std::runtime_error("intersectionPoint: No intersections found");
   }
 
