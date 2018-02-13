@@ -7,6 +7,8 @@ CXX ?= g++
 SRC_EXT = cpp
 # Path to the source directory, relative to the makefile
 SRC_PATH = src
+# Path to the pi-specific source directory, relative to the source directory
+PI_SRC_PATH = pi 
 # Space-separated pkg-config libraries used by this project
 LIBS = 
 # General compiler flags
@@ -65,23 +67,41 @@ endif
 # Combine compiler and linker flags
 release: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(RCOMPILE_FLAGS)
 release: export LDFLAGS := $(LDFLAGS) $(LINK_FLAGS) $(RLINK_FLAGS)
+pi: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(RCOMPILE_FLAGS)
+pi: export LDFLAGS := $(LDFLAGS) $(LINK_FLAGS) $(RLINK_FLAGS)
 debug: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(DCOMPILE_FLAGS)
 debug: export LDFLAGS := $(LDFLAGS) $(LINK_FLAGS) $(DLINK_FLAGS)
 
 # Build and output paths
 release: export BUILD_PATH := build/release
 release: export BIN_PATH := bin/release
+pi: export BUILD_PATH := build/pi
+pi: export BIN_PATH := bin/pi
 debug: export BUILD_PATH := build/debug
 debug: export BIN_PATH := bin/debug
 install: export BIN_PATH := bin/release
 
+# Source paths
+pi: export PLATFORM_SRC_PATH := $(SRC_PATH)/$(PI_SRC_PATH)
+
 # Find all source files in the source directory, sorted by most
 # recently modified
 ifeq ($(UNAME_S),Darwin)
-	SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
+	SOURCES = $(shell find $(SRC_PATH) -maxdepth 1 -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
 else
-	SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' -printf '%T@\t%p\n' \
+	SOURCES = $(shell find $(SRC_PATH) -maxdepth 1 -name '*.$(SRC_EXT)' -printf '%T@\t%p\n' \
 						| sort -k 1nr | cut -f2-)
+endif
+
+# Find all source files in the platform source directory, sorted by most
+# recently modified
+ifneq ($(PLATFORM_SRC_PATH),)
+ifeq ($(UNAME_S),Darwin)
+	SOURCES += $(shell find $(PLATFORM_SRC_PATH) -maxdepth 1 -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
+else
+	SOURCES += $(shell find $(PLATFORM_SRC_PATH) -maxdepth 1 -name '*.$(SRC_EXT)' -printf '%T@\t%p\n' \
+						| sort -k 1nr | cut -f2-)
+endif
 endif
 
 # fallback in case the above fails
@@ -146,6 +166,20 @@ ifeq ($(USE_VERSION), true)
 else
 	@echo "Beginning release build"
 endif
+	@$(START_TIME)
+	@$(MAKE) all --no-print-directory
+	@echo -n "Total build time: "
+	@$(END_TIME)
+
+# Standard, non-optimized release build
+.PHONY: pi
+pi: dirs
+ifeq ($(USE_VERSION), true)
+	@echo "Beginning pi release build v$(VERSION_STRING)"
+else
+	@echo "Beginning pi release build"
+endif
+	@mkdir -p $(BUILD_PATH)/$(PI_SRC_PATH)
 	@$(START_TIME)
 	@$(MAKE) all --no-print-directory
 	@echo -n "Total build time: "
