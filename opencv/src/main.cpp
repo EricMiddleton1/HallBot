@@ -108,9 +108,10 @@ int main( int argc, char** argv )
     ioService.run();
     std::cerr << "[Error] ioService thread exit" << std::endl;
   });
-  
+/*  
   namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
   namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
+*/
 /*
   createTrackbar("Hough Threshold", DEBUG_WINDOW_NAME, &s_trackbar, max_trackbar,
     nullptr);
@@ -180,8 +181,8 @@ int main( int argc, char** argv )
       bot.setWheels(0, 0);
     }
     //imshow(WINDOW_NAME, frame);
-    imshow(WINDOW_NAME, frame_gray);
-    imshow(DEBUG_WINDOW_NAME, frame_hough);
+    //imshow(WINDOW_NAME, frame_gray);
+    //imshow(DEBUG_WINDOW_NAME, frame_hough);
   }
 
   return 0;
