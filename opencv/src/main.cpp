@@ -13,6 +13,8 @@
 #include "iRobot.hpp"
 #include "PID.hpp"
 
+#include "VideoManager.hpp"
+
 using namespace cv;
 using namespace std;
 
@@ -46,7 +48,13 @@ int main( int argc, char** argv )
 {
   const string WINDOW_NAME = "Vanishing Point Detector";
   const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
-  
+ 
+  auto videoDevices = VideoManager::enumerateDevices();
+  std::cout << "Enumerating video devices: " << videoDevices.size() << std::endl;
+  for(const auto& device : videoDevices) {
+    std::cout << "\t" << device << std::endl;
+  }
+
   if(argc < 2) {
     printHelp(argv[0]);
     return 1;
