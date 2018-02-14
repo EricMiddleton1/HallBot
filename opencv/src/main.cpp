@@ -2,6 +2,8 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 
+#include <raspicam/raspicam_cv.h>
+
 #include <string>
 #include <iostream>
 #include <stdexcept>
@@ -33,7 +35,7 @@ const int TARGET_FRAME_HEIGHT = 480;
 
 const string PORT = "/dev/ttyUSB0";
 
-int s_trackbar = 28; //60
+int s_trackbar = 40; //60
 int v_theta_trackbar = 10;
 int h_theta_trackbar = 5;
 int ransac_threshold_trackbar = 10;
@@ -61,6 +63,8 @@ int main( int argc, char** argv )
   }
 
   std::unique_ptr<VideoDevice> videoDevice;
+  raspicam::RaspiCam_Cv camera;
+  bool pi;
 
   if(string(argv[1]) == "--webcam") {
     if(argc < 3) {
@@ -71,6 +75,21 @@ int main( int argc, char** argv )
     videoDevice = VideoManager::build("webcam",
       { {"id", argv[2]}, {"max_height", "240"}, {"color_mode", "bw"} });
   }
+  else if(string(argv[1]) == "--raspberrypi") {
+    camera.set(CV_CAP_PROP_FORMAT, CV_8UC1);
+    camera.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+    camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+    camera.set(CV_CAP_PROP_EXPOSURE, 5);
+    camera.set(CV_CAP_PROP_BRIGHTNESS, 50);
+    camera.set(CV_CAP_PROP_GAIN, 100);
+    camera.set(CV_CAP_PROP_CONTRAST, std::stoi(argv[2]));
+    if(!camera.open()) {
+	    std::cerr << "[Error] Failed to open raspberry pi camera" << std::endl;
+      return 1;
+    }
+    
+    pi = true;
+  }
   else {
     videoDevice = VideoManager::build("video file",
       { {"file", argv[1]}, {"max_height", "240"}, {"color_mode", "bw"} });
@@ -79,36 +98,39 @@ int main( int argc, char** argv )
   float hallwayX = 0.5f;
   PID steerPID{200.f, 0.f, 0.f};
   steerPID.set(0.5f);
-  
+ 
   boost::asio::io_service ioService;
   boost::asio::io_service::work ioWork(ioService);
   
   iRobot bot{ioService, PORT};
   bot.start();
   this_thread::sleep_for(chrono::milliseconds(100));
-
   std::thread botThread([&ioService]() {
     ioService.run();
     std::cerr << "[Error] ioService thread exit" << std::endl;
   });
-
+/*  
   namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
   namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
-
+*/
+/*
   createTrackbar("Hough Threshold", DEBUG_WINDOW_NAME, &s_trackbar, max_trackbar,
     nullptr);
+  /*
   createTrackbar("Vertical Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
     &v_theta_trackbar, max_theta_trackbar, nullptr);
   createTrackbar("Horizontal Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
     &h_theta_trackbar, max_theta_trackbar, nullptr);
+  */
+  /*
   createTrackbar("RANSAC Threshold", DEBUG_WINDOW_NAME, &ransac_threshold_trackbar,
     max_ransac_threshold, updateRansac);
   createTrackbar("RANSAC Max Iterations", DEBUG_WINDOW_NAME, &ransac_iterations_trackbar,
     max_ransac_iterations, updateRansac);
-
+*/
   updateRansac(0, 0);
 
-  while(waitKey(10) == -1) {
+  while(waitKey(1) == -1) {
 		int startTime = cv::getTickCount();
 
     Mat frame, resized, frame_gray, frame_edges, frame_hough;
@@ -122,28 +144,38 @@ int main( int argc, char** argv )
     
     frame_gray = frame;
 
+/*    
+    if(pi) {
+      camera.grab();
+      camera.retrieve(frame_gray);
+    }
+*/
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
     try {
       auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough);
 
       auto curX = static_cast<float>(vanishingPoint.x) / frameSize.width;
-      hallwayX = 0.5f*curX + 0.5f*hallwayX;
+      hallwayX = 0.1f*curX + 0.9f*hallwayX;
       auto actuation = steerPID.update(hallwayX, 0.015);
+      actuation = std::max(-100.f, std::min(100.f, actuation));
 
-      circle(resized, {hallwayX*frameSize.width, vanishingPoint.y}, 15,
+      circle(frame_gray, {hallwayX*frameSize.width, vanishingPoint.y}, 15,
         Scalar(0, 0, 255), -1);
-      circle(resized, vanishingPoint, 15, Scalar(255, 0, 0),
+      circle(frame_gray, vanishingPoint, 15, Scalar(255, 0, 0),
         -1);
 
       std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
         << actuation << std::endl;
 
-      bot.setWheels(50 - actuation, 50 + actuation);
+      bot.setWheels(100 - actuation, 100 + actuation);
     }
     catch(const exception& e) {
       bot.setWheels(0, 0);
     }
+    //imshow(WINDOW_NAME, frame);
+    //imshow(WINDOW_NAME, frame_gray);
+    //imshow(DEBUG_WINDOW_NAME, frame_hough);
 
 		int endTime = cv::getTickCount();
 
@@ -153,7 +185,7 @@ int main( int argc, char** argv )
     imshow(WINDOW_NAME, frame);
     imshow(DEBUG_WINDOW_NAME, frame_hough);
   }
-  
+
   return 0;
 }
 

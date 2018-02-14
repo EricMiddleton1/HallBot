@@ -20,7 +20,7 @@ DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
 INCLUDES = -I $(SRC_PATH) -IGRANSAC/include `pkg-config --cflags opencv`
 # General linker settings
-LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system
+LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system -lraspicam -lraspicam_cv
 # Additional release-specific linker settings
 RLINK_FLAGS =
 # Additional debug-specific linker settings
