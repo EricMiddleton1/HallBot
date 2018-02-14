@@ -85,6 +85,9 @@ int main( int argc, char** argv )
   bot.start();
   this_thread::sleep_for(chrono::milliseconds(100));
 
+
+  bot.setWheels(500, 0);
+  
   std::thread botThread([&ioService]() {
     ioService.run();
     std::cerr << "[Error] ioService thread exit" << std::endl;
@@ -106,6 +109,9 @@ int main( int argc, char** argv )
 
   updateRansac(0, 0);
 
+  // previous angle from iRobot
+  float prev_bot_theta = 0
+  
   while(waitKey(10) == -1) {
 		int startTime = cv::getTickCount();
 
@@ -135,17 +141,35 @@ int main( int argc, char** argv )
     try {
       auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough);
 
+      
       auto curX = static_cast<float>(vanishingPoint.x) / frameSize.width;
-      hallwayX = 0.5f*curX + 0.5f*hallwayX;
-      auto actuation = steerPID.update(hallwayX, 0.015);
+
+      // Angle between direction of robot and vantage point based on camera.
+      // Camera is 54 x 41 degrees.
+      // Theta will be positive if VP is to the right or negative if VP is to the left. 
+      float cam_theta = (curX - 0.5) * (26 * CV_PI / 180);
+
+      // Angle from iRobot
+      float bot_theta = bot.getAngle();
+
+      // Complementary filter
+      float alpha = 0.9f;
+      float d_bot_theta = bot_theta - prev_bot_theta;
+      float angle_n = (alpha * (prev_bot_theta + (d_bot_theta * 0.015))) + ((1 - alpha) * cam_theta);
+      
+      std::cout << "Camera angle: " << cam_theta << "\niRobot angle: " << bot_theta << "\n";
+      
+	
+      //hallwayX = 0.5f*curX + 0.5f*hallwayX;
+      auto actuation = steerPID.update(angle_n, 0.015);
 
       circle(resized, {hallwayX*frameSize.width, vanishingPoint.y}, 15,
         Scalar(0, 0, 255), -1);
       circle(resized, vanishingPoint, 15, Scalar(255, 0, 0),
         -1);
 
-      std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
-        << actuation << std::endl;
+      //std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
+      //	<< actuation << std::endl;
 
       bot.setWheels(50 - actuation, 50 + actuation);
     }
