@@ -60,26 +60,20 @@ int main( int argc, char** argv )
     return 1;
   }
 
-  VideoCapture cap;
-  
+  std::unique_ptr<VideoDevice> videoDevice;
+
   if(string(argv[1]) == "--webcam") {
     if(argc < 3) {
       printHelp(argv[0]);
       return 1;
     }
     
-    cap.open(stoi(argv[2]));
-    if(!cap.isOpened()) {
-      std::cerr << "[Error] Failed to open webcam '" << argv[2] << "'" << std::endl;
-      return 1;
-    }
+    videoDevice = VideoManager::build("webcam",
+      { {"id", argv[2]}, {"max_height", "240"}, {"color_mode", "bw"} });
   }
   else {
-    cap.open(argv[1]);
-    if(!cap.isOpened()) {
-      std::cerr << "[Error] Failed to open video file '" << argv[1] << "'" << std::endl;
-      return 1;
-    }
+    videoDevice = VideoManager::build("video file",
+      { {"file", argv[1]}, {"max_height", "240"}, {"color_mode", "bw"} });
   }
 
   float hallwayX = 0.5f;
@@ -118,26 +112,16 @@ int main( int argc, char** argv )
 		int startTime = cv::getTickCount();
 
     Mat frame, resized, frame_gray, frame_edges, frame_hough;
-    cap >> frame;
-
-    if(frame.empty()) {
-      //Restart video
-      cap.set(CAP_PROP_POS_AVI_RATIO, 0);
-      
+    if(!videoDevice->getFrame(frame)) {
+      std::cerr << "[Warning] Failed to fetch frame" << std::endl;
       continue;
     }
-
     auto frameSize = frame.size();
-    if(frameSize.height > TARGET_FRAME_HEIGHT) {
-      float aspectRatio = static_cast<float>(frameSize.width) / frameSize.height;
-      frameSize = Size(TARGET_FRAME_HEIGHT*aspectRatio, TARGET_FRAME_HEIGHT);
-      resize(frame, resized, frameSize, 0, 0, INTER_CUBIC);
-    }
-    else {
-      resized = frame;
-    }
+    std::cout << "[Info] Frame size: (" << frameSize.width << ", " << frameSize.height
+      << ")" << std::endl;
+    
+    frame_gray = frame;
 
-    cvtColor(resized, frame_gray, COLOR_RGB2GRAY);
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
     try {
@@ -166,7 +150,7 @@ int main( int argc, char** argv )
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
 
-    imshow(WINDOW_NAME, resized);
+    imshow(WINDOW_NAME, frame);
     imshow(DEBUG_WINDOW_NAME, frame_hough);
   }
   

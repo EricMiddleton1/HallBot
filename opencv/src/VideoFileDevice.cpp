@@ -1,22 +1,26 @@
-#include "WebcamDevice.hpp"
+#include "VideoFileDevice.hpp"
 
-DeviceRegistration WebcamDevice::registration_{{"webcam",
+DeviceRegistration VideoFileDevice::registration_{{"video file",
   [](const std::vector<VideoDevice::Param>& params) {
-    return std::make_unique<WebcamDevice>(params);
+    return std::make_unique<VideoFileDevice>(params);
   }}};
 
-WebcamDevice::WebcamDevice(const std::vector<Param>& params)
-  : VideoDevice({"id"}, params) {
+VideoFileDevice::VideoFileDevice(const std::vector<Param>& params)
+  : VideoDevice({"file"}, params) {
 
-  cap_.open(std::stoi(getParam("id")));
+  cap_.open(getParam("file"));
   if(!cap_.isOpened()) {
-    throw std::runtime_error("WebcamDevice: Failed to open webcam " + getParam("id"));
+    throw std::runtime_error("VideoFileDevice: Failed to open webcam " + getParam("id"));
   }
 }
 
-bool WebcamDevice::getFrame(cv::Mat& out) {
+bool VideoFileDevice::getFrame(cv::Mat& out) {
   cap_ >> out;
-  
+  if(out.empty()) {
+    cap_.set(cv::CAP_PROP_POS_AVI_RATIO, 0);
+    cap_ >> out;
+  }
+
   if(!out.empty()) {
     if(paramExists("max_height")) {
       auto maxHeight = std::stoi(getParam("max_height"));

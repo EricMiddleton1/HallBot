@@ -40,6 +40,18 @@ int VideoDevice::paramIndex(const std::string& key) const {
   }
 }
 
+cv::Mat VideoDevice::resize(const cv::Mat& in, float height) {
+  cv::Mat out;
+
+  auto inSize = in.size();
+  float aspectRatio = static_cast<float>(inSize.width) / inSize.height;
+  cv::Size newSize(height*aspectRatio, height);
+
+  cv::resize(in, out, newSize, 0, 0, cv::INTER_CUBIC);
+
+  return out;
+}
+
 ParamMissingException::ParamMissingException(const std::string& key)
   : key_{key}
   , msg_{std::string("Missing Parameter '") + key + "'"} {

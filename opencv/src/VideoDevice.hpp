@@ -21,6 +21,8 @@ protected:
   bool paramExists(const std::string& key) const;
   const std::string& getParam(const std::string& key) const;
 
+  static cv::Mat resize(const cv::Mat& in, float height);
+
 private:
   int paramIndex(const std::string& key) const;
 
