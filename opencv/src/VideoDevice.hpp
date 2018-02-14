@@ -20,6 +20,7 @@ public:
 protected:
   bool paramExists(const std::string& key) const;
   const std::string& getParam(const std::string& key) const;
+  std::string getParam(const std::string& key, const std::string& defaultValue) const;
 
   static cv::Mat resize(const cv::Mat& in, float height);
 

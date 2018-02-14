@@ -63,8 +63,6 @@ int main( int argc, char** argv )
   }
 
   std::unique_ptr<VideoDevice> videoDevice;
-  raspicam::RaspiCam_Cv camera;
-  bool pi;
 
   if(string(argv[1]) == "--webcam") {
     if(argc < 3) {
@@ -76,19 +74,8 @@ int main( int argc, char** argv )
       { {"id", argv[2]}, {"max_height", "240"}, {"color_mode", "bw"} });
   }
   else if(string(argv[1]) == "--raspberrypi") {
-    camera.set(CV_CAP_PROP_FORMAT, CV_8UC1);
-    camera.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-    camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-    camera.set(CV_CAP_PROP_EXPOSURE, 5);
-    camera.set(CV_CAP_PROP_BRIGHTNESS, 50);
-    camera.set(CV_CAP_PROP_GAIN, 100);
-    camera.set(CV_CAP_PROP_CONTRAST, std::stoi(argv[2]));
-    if(!camera.open()) {
-	    std::cerr << "[Error] Failed to open raspberry pi camera" << std::endl;
-      return 1;
-    }
-    
-    pi = true;
+    videoDevice = VideoManager::build("raspicam",
+      { {"width", "320"}, {"height", "240"}, {"color_mode", "bw"} });
   }
   else {
     videoDevice = VideoManager::build("video file",
@@ -144,12 +131,6 @@ int main( int argc, char** argv )
     
     frame_gray = frame;
 
-/*    
-    if(pi) {
-      camera.grab();
-      camera.retrieve(frame_gray);
-    }
-*/
     Canny(frame_gray, frame_edges, 50, 200, 3);
     
     try {

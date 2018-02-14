@@ -26,6 +26,17 @@ const std::string& VideoDevice::getParam(const std::string& key) const {
   }
 }
 
+std::string VideoDevice::getParam(const std::string& key,
+  const std::string& defaultValue) const {
+  auto index = paramIndex(key);
+  if(index == -1) {
+    return defaultValue;
+  }
+  else {
+    return params_[index].second;
+  }
+}
+
 int VideoDevice::paramIndex(const std::string& key) const {
   auto found = std::find_if(params_.begin(), params_.end(),
     [&key](const auto& param) {
