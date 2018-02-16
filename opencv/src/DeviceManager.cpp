@@ -1,8 +1,8 @@
-#include "VideoManager.hpp"
+#include "DeviceManager.hpp"
 
-std::vector<DeviceBuilder>* VideoManager::builders_ = nullptr;
+std::vector<DeviceBuilder>* DeviceManager::builders_ = nullptr;
 
-void VideoManager::registerDevice(DeviceBuilder&& builder) {
+void DeviceManager::registerDevice(DeviceBuilder&& builder) {
   static std::vector<DeviceBuilder> localBuilders;
 
   if(builders_ == nullptr) {
@@ -12,8 +12,8 @@ void VideoManager::registerDevice(DeviceBuilder&& builder) {
   localBuilders.emplace_back(std::move(builder));
 }
 
-std::unique_ptr<VideoDevice> VideoManager::build(const std::string& name,
-  const std::vector<VideoDevice::Param>& params) {
+std::unique_ptr<IConfigurable> DeviceManager::build(const std::string& name,
+  std::vector<IConfigurable::Param>&& params) {
 
   if(builders_ == nullptr) {
     return nullptr;
@@ -28,11 +28,11 @@ std::unique_ptr<VideoDevice> VideoManager::build(const std::string& name,
     return nullptr;
   }
   else {
-    return found->build(params);
+    return found->build(std::move(params));
   }
 }
 
-std::vector<std::string> VideoManager::enumerateDevices() {
+std::vector<std::string> DeviceManager::enumerateDevices() {
   if(builders_ == nullptr) {
     return {};
   }

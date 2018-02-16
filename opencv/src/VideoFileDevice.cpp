@@ -1,12 +1,12 @@
 #include "VideoFileDevice.hpp"
 
 DeviceRegistration VideoFileDevice::registration_{{"video file",
-  [](const std::vector<VideoDevice::Param>& params) {
-    return std::make_unique<VideoFileDevice>(params);
+  [](std::vector<VideoDevice::Param>&& params) {
+    return std::make_unique<VideoFileDevice>(std::move(params));
   }}};
 
-VideoFileDevice::VideoFileDevice(const std::vector<Param>& params)
-  : VideoDevice({"file"}, params) {
+VideoFileDevice::VideoFileDevice(std::vector<Param>&& params)
+  : VideoDevice({"file"}, std::move(params)) {
 
   cap_.open(getParam("file"));
   if(!cap_.isOpened()) {

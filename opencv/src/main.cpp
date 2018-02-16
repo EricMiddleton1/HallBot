@@ -7,13 +7,15 @@
 #include <stdexcept>
 #include <thread>
 
+#include <yaml-cpp/yaml.h>
+
 #include "GRANSAC.hpp"
 #include "IntersectModel.hpp"
 
 #include "iRobot.hpp"
 #include "PID.hpp"
 
-#include "VideoManager.hpp"
+#include "DeviceManager.hpp"
 
 using namespace cv;
 using namespace std;
@@ -46,40 +48,49 @@ cv::Point intersectionPoint(const vector<P_Line>& inLines);
 
 int main( int argc, char** argv )
 {
-  const string WINDOW_NAME = "Vanishing Point Detector";
-  const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
- 
-  auto videoDevices = VideoManager::enumerateDevices();
-  std::cout << "Enumerating video devices: " << videoDevices.size() << std::endl;
-  for(const auto& device : videoDevices) {
-    std::cout << "\t" << device << std::endl;
+  YAML::Node config = YAML::LoadFile("config.yml");
+  if(!config) {
+    std::cerr << "[Error] Unable to load configuration file 'config.yml'" << std::endl;
+    return 1;
   }
-
-  if(argc < 2) {
-    printHelp(argv[0]);
+  
+  auto videoConfig = config["video_device"];
+  if(!videoConfig) {
+    std::cerr << "[Error] Config file does not have required section 'video_device'"
+      << std::endl;
     return 1;
   }
 
-  std::unique_ptr<VideoDevice> videoDevice;
-
-  if(string(argv[1]) == "--webcam") {
-    if(argc < 3) {
-      printHelp(argv[0]);
-      return 1;
-    }
+  std::string videoName;
+  std::vector<std::pair<std::string, std::string>> videoParams;
+  for(const auto& param : videoConfig) {
+    auto key = param.first.as<std::string>();
+    auto value = param.second.as<std::string>();
     
-    videoDevice = VideoManager::build("webcam",
-      { {"id", argv[2]}, {"max_height", "240"}, {"color_mode", "bw"} });
-  }
-  else if(string(argv[1]) == "--raspberrypi") {
-    videoDevice = VideoManager::build("raspicam",
-      { {"width", "320"}, {"height", "240"}, {"color_mode", "bw"} });
-  }
-  else {
-    videoDevice = VideoManager::build("video file",
-      { {"file", argv[1]}, {"max_height", "240"}, {"color_mode", "bw"} });
+    if(key == "name") {
+      videoName = value;
+      std::cout << "[Info] Using video device type '" << videoName << "'" << std::endl;
+    }
+    else {
+      std::cout << "[Info] Using video parameter '" << key << "' with value '"
+        << value << "'" << std::endl;
+
+      videoParams.emplace_back(key, value);
+    }
   }
 
+  const string WINDOW_NAME = "Vanishing Point Detector";
+  const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
+ 
+  auto devices = DeviceManager::enumerateDevices();
+  std::cout << "Enumerating devices: " << devices.size() << std::endl;
+  for(const auto& device : devices) {
+    std::cout << "\t" << device << std::endl;
+  }
+
+  auto videoDevice =
+    device_cast<VideoDevice>(DeviceManager::build(videoName, std::move(videoParams)));
+  
   float hallwayX = 0.5f;
   PID steerPID{200.f, 0.f, 0.f};
   steerPID.set(0.5f);
@@ -166,11 +177,6 @@ int main( int argc, char** argv )
   }
 
   return 0;
-}
-
-void printHelp(const string& programName) {
-  std::cout << "Usage:\n\t" << programName << " file_name\n\t"
-    << programName << " --webcam webcam_id" << std::endl;
 }
 
 void updateRansac(int, void*) {

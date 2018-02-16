@@ -7,7 +7,7 @@
 
 class VideoFileDevice : public VideoDevice {
 public:
-  VideoFileDevice(const std::vector<Param>& params);
+  VideoFileDevice(std::vector<Param>&& params);
 
   bool getFrame(cv::Mat& out) override;
 private:

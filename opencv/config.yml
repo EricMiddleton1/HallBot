@@ -1,0 +1,5 @@
+video_device:
+  name:       webcam
+  id:         0
+  color_mode: bw
+  max_height: 240

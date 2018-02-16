@@ -1,12 +1,12 @@
 #include "RaspicamDevice.hpp"
 
 DeviceRegistration RaspicamDevice::registration_{{"raspicam",
-  [](const std::vector<VideoDevice::Param>& params) {
+  [](std::vector<VideoDevice::Param>&& std::move(params)) {
     return std::make_unique<RaspicamDevice>(params);
   }}};
 
-RaspicamDevice::RaspicamDevice(const std::vector<Param>& params)
-  : VideoDevice({"width", "height"}, params) {
+RaspicamDevice::RaspicamDevice(std::vector<Param>&& params)
+  : VideoDevice({"width", "height"}, std::move(params)) {
 
   int width = std::stoi(getParam("width")),
     height = std::stoi(getParam("height"));

@@ -9,6 +9,7 @@ const std::string& DeviceBuilder::name() const {
   return name_;
 }
 
-std::unique_ptr<VideoDevice> DeviceBuilder::build(const std::vector<Param>& params) {
-  return buildFn_(params);
+std::unique_ptr<IConfigurable> DeviceBuilder::build(std::vector<IConfigurable::Param>&&
+  params) {
+  return buildFn_(std::move(params));
 }

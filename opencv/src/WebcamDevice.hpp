@@ -7,7 +7,7 @@
 
 class WebcamDevice : public VideoDevice {
 public:
-  WebcamDevice(const std::vector<Param>& params);
+  WebcamDevice(std::vector<Param>&& params);
 
   bool getFrame(cv::Mat& out) override;
 private:

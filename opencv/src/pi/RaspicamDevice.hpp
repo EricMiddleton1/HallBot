@@ -7,7 +7,7 @@
 
 class RaspicamDevice : public VideoDevice {
 public:
-  RaspicamDevice(const std::vector<Param>& params);
+  RaspicamDevice(std::vector<Param>&& params);
 
   bool getFrame(cv::Mat& out) override;
 private:

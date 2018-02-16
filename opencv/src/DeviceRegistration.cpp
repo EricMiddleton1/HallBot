@@ -1,7 +1,7 @@
 #include "DeviceRegistration.hpp"
 
-#include "VideoManager.hpp"
+#include "DeviceManager.hpp"
 
 DeviceRegistration::DeviceRegistration(DeviceBuilder&& builder) {
-  VideoManager::registerDevice(std::move(builder));
+  DeviceManager::registerDevice(std::move(builder));
 }

@@ -1,12 +1,12 @@
 #include "WebcamDevice.hpp"
 
 DeviceRegistration WebcamDevice::registration_{{"webcam",
-  [](const std::vector<VideoDevice::Param>& params) {
-    return std::make_unique<WebcamDevice>(params);
+  [](std::vector<VideoDevice::Param>&& params) {
+    return std::make_unique<WebcamDevice>(std::move(params));
   }}};
 
-WebcamDevice::WebcamDevice(const std::vector<Param>& params)
-  : VideoDevice({"id"}, params) {
+WebcamDevice::WebcamDevice(std::vector<Param>&& params)
+  : VideoDevice{{"id"}, std::move(params)} {
 
   cap_.open(std::stoi(getParam("id")));
   if(!cap_.isOpened()) {
