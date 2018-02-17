@@ -1,8 +1,10 @@
 #pragma once
 
-class PID {
+#include "IConfigurable.hpp"
+
+class PID : public IConfigurable{
 public:
-  PID(float kp, float ki, float kd);
+  PID(std::vector<IConfigurable::Param>&& params);
 
   void set(float setpoint);
   float update(float curPoint, float dt);

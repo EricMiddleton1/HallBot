@@ -1,21 +1,23 @@
 #pragma once
 
 #include <string>
+#include <thread>
 #include <mutex>
 
 #include <boost/asio.hpp>
 
 #include "SerialPort.hpp"
 
-class iRobot {
+#include "IConfigurable.hpp"
+
+class iRobot : public IConfigurable {
 public:
   struct Position {
     float x, y;
   };
 
-  iRobot(boost::asio::io_service& ioService, const std::string& comPort);
-
-  void start();
+  iRobot(std::vector<IConfigurable::Param>&& params);
+  ~iRobot();
 
   void setWheels(int left, int right);
 
@@ -76,13 +78,15 @@ private:
   };
   const uint8_t SensorStreamStart = 19;
 
+  void start();
   void recvHandler(std::vector<uint8_t> data);
   bool parseSensorStream(const std::vector<uint8_t>&, int& start);
   bool processSensorUpdate();
 
   static int16_t parseInt16(const std::vector<uint8_t>& buffer, int start);
 
-  boost::asio::io_service& ioService;
+  boost::asio::io_service ioService;
+  std::unique_ptr<boost::asio::io_service::work> ioWork;
   SerialPort port;
 
   std::vector<uint8_t> sensorStream;
@@ -91,4 +95,6 @@ private:
   float angle;
 
   mutable std::mutex mutex;
+
+  std::thread asyncThread;
 };

@@ -4,13 +4,25 @@
 #include <numeric>
 #include <cmath>
 
-iRobot::iRobot(boost::asio::io_service& _ioService, const std::string& comPort)
-  : ioService{_ioService}
-  , port{ioService, comPort, 57600, [this](std::vector<uint8_t> data) {
+iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
+  : IConfigurable{ {"port"}, std::move(params) }
+  , ioWork{std::make_unique<boost::asio::io_service::work>(ioService)}
+  , port{ioService, getParam("port"), 57600, [this](std::vector<uint8_t> data) {
       recvHandler(data);
     }}
   , pos{0.f, 0.f}
-  , angle{0.f} {
+  , angle{0.f}
+  , asyncThread{ [this](){
+      ioService.run();
+      std::cout << "[Error] SerialPort: Thread close" << std::endl;
+    }} {
+
+  start();
+}
+
+iRobot::~iRobot() {
+  ioWork.reset();
+  asyncThread.join();
 }
 
 void iRobot::start() {
@@ -28,7 +40,8 @@ void iRobot::setWheels(int left, int right) {
   right = std::min(500, std::max(-500, right));
 
   port.send({static_cast<uint8_t>(Command::DriveDirect),
-    right >> 8, right & 0xFF, left >> 8, left & 0xFF});
+    static_cast<uint8_t>(right >> 8), static_cast<uint8_t>(right & 0xFF),
+    static_cast<uint8_t>(left >> 8), static_cast<uint8_t>(left & 0xFF)});
 }
 
 iRobot::Position iRobot::getPosition() const {
@@ -44,19 +57,14 @@ float iRobot::getAngle() const {
 void iRobot::recvHandler(std::vector<uint8_t> data) {
   int start = 0;
   while(parseSensorStream(data, start)) {
-    if(processSensorUpdate()) {
-      /*
-      std::cout << "[Info] iRobot position: (" << pos.x << ", " << pos.y << ")"
-        << std::endl;
-      */
-    }
     sensorStream.clear();
   }
 }
 
 bool iRobot::parseSensorStream(const std::vector<uint8_t>& data, int& start) {
   if(sensorStream.empty()) {
-    for(; (start < data.size()) && data[start] != SensorStreamStart; ++start) {
+    for(; (start < static_cast<int>(data.size())) && data[start] != SensorStreamStart;
+      ++start) {
       std::cout << "[Warning] iRobot: Rejecting byte '" << static_cast<int>(data[start])
         << "'" << std::endl;
     }
@@ -117,10 +125,6 @@ bool iRobot::processSensorUpdate() {
     pos.x += dist * std::cos(angle);
     pos.y += dist * std::sin(angle);
   }
-/*
-  std::cout << "[Info] Angle Change = " << ang_change << ", total angle = "
-    << angle*180./M_PI;
-*/
   return true;
 }
 

@@ -1,5 +1,29 @@
 video_device:
-  name:       webcam
-  id:         0
+  name:       video file
+  file:       ../videos/coover01.mp4
   color_mode: bw
   max_height: 240
+
+edge_detector:
+  low_threshold:    50
+  high_threshold:   150
+  kernel_size:      3
+
+hough_transform:
+  rho:                  1
+  theta:                1
+  threshold:            90
+  min_vertical_angle:   10
+  min_horizontal_angle: 5
+
+vanishing_point_detector:
+  threshold:            10
+  iterations:           100
+
+steer_pid:
+  kp: 200
+  ki: 0
+  kd: 0
+
+#robot:
+#  port: /dev/ttyUSB0
