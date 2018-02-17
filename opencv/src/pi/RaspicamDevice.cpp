@@ -1,8 +1,8 @@
 #include "RaspicamDevice.hpp"
 
 DeviceRegistration RaspicamDevice::registration_{{"raspicam",
-  [](std::vector<VideoDevice::Param>&& std::move(params)) {
-    return std::make_unique<RaspicamDevice>(params);
+  [](std::vector<VideoDevice::Param>&& params) {
+    return std::make_unique<RaspicamDevice>(std::move(params));
   }}};
 
 RaspicamDevice::RaspicamDevice(std::vector<Param>&& params)
