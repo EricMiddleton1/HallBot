@@ -46,6 +46,7 @@ int main( int argc, char** argv )
 {
   const string WINDOW_NAME = "Vanishing Point Detector";
   const string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
+  const string OPT_FLOW_WINDOW_NAME = "Optical Flow Detector";
   
   if(argc < 2) {
     printHelp(argv[0]);
@@ -95,7 +96,8 @@ int main( int argc, char** argv )
 
   namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
   namedWindow(DEBUG_WINDOW_NAME, WINDOW_AUTOSIZE);
-
+  namedWindow(OPT_FLOW_WINDOW_NAME, WINDOW_AUTOSIZE);
+  
   createTrackbar("Hough Threshold", DEBUG_WINDOW_NAME, &s_trackbar, max_trackbar,
     nullptr);
   createTrackbar("Vertical Angle Threshold (degrees)", DEBUG_WINDOW_NAME,
@@ -113,9 +115,9 @@ int main( int argc, char** argv )
   float prev_bot_theta = 0
   
   while(waitKey(10) == -1) {
-		int startTime = cv::getTickCount();
+    int startTime = cv::getTickCount();
 
-    Mat frame, resized, frame_gray, frame_edges, frame_hough;
+    Mat frame, resized, img_flo, frame_gray, frame_edges, frame_hough;
     cap >> frame;
 
     if(frame.empty()) {
@@ -141,7 +143,6 @@ int main( int argc, char** argv )
     try {
       auto vanishingPoint = detectVanishingPoint(frame_edges, frame_hough);
 
-      
       auto curX = static_cast<float>(vanishingPoint.x) / frameSize.width;
 
       // Angle between direction of robot and vantage point based on camera.
@@ -158,8 +159,7 @@ int main( int argc, char** argv )
       float angle_n = (alpha * (prev_bot_theta + (d_bot_theta * 0.015))) + ((1 - alpha) * cam_theta);
       
       std::cout << "Camera angle: " << cam_theta << "\niRobot angle: " << bot_theta << "\n";
-      
-	
+      	
       //hallwayX = 0.5f*curX + 0.5f*hallwayX;
       auto actuation = steerPID.update(angle_n, 0.015);
 
@@ -184,6 +184,7 @@ int main( int argc, char** argv )
 
     imshow(WINDOW_NAME, resized);
     imshow(DEBUG_WINDOW_NAME, frame_hough);
+    imshow(OPT_FLO_WINDOW_NAME, img_flo);
   }
   
   return 0;
