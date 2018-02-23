@@ -16,6 +16,7 @@
 #include "VanishingPointDetector.hpp"
 #include "iRobot.hpp"
 #include "PID.hpp"
+#include "ComplementaryFilter.hpp"
 
 const std::string WINDOW_NAME = "Vanishing Point Detector";
 const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
@@ -42,17 +43,17 @@ int main(void)
   auto vpDetector{std::make_unique<VanishingPointDetector>(
     config.getParams("vanishing_point_detector"))};
   auto steerPID{std::make_unique<PID>(config.getParams("steer_pid"))};
+  auto angleFilter{std::make_unique<ComplementaryFilter>(
+    config.getParams("complementary_filter"))};
 
   std::unique_ptr<iRobot> bot;
   if(config.hasEntry("robot")) {
     bot = std::make_unique<iRobot>(config.getParams("robot"));
   }
  
-  // previous angle from iRobot
-  float prev_bot_theta = 0;
-  
   steerPID->set(0.5f);
 
+  float prev_bot_theta = 0.f;
   while(cv::waitKey(1) == -1) {
     //Start loop stopwatch
 		int startTime = cv::getTickCount();
@@ -87,25 +88,25 @@ int main(void)
       float cam_theta = (curX - 0.5) * (54 * CV_PI / 180);
 
       // Angle from iRobot
-      float bot_theta = 0.f, alpha = 0.f;
-      
+      float bot_theta = 0.f;
       if(bot) {
         bot_theta = bot->getAngle();
-        alpha = 0.9f;
       }
 
       // Complementary filter
       float d_bot_theta = bot_theta - prev_bot_theta;
-      float angle_n = (alpha * (prev_bot_theta + (d_bot_theta * 0.015))) +
-        ((1 - alpha) * cam_theta);
+      float angle_n = angleFilter->filter(d_bot_theta, cam_theta, 0.015);
+      
       std::cout << "Camera angle: " << 180.f*cam_theta/CV_PI << "\niRobot angle: "
-				<< 180.f*bot_theta/CV_PI << "\n";
+				<< 180.f*bot_theta/CV_PI << "\nAngle: " << 180.f*angle_n/CV_PI <<  "\n";
       	
       steer = steerPID->update(angle_n, 0.015);
       steer = std::max(-100.f, std::min(100.f, steer));
 
       circle(frame, {cvRound(vanishingPoint[0]), cvRound(vanishingPoint[1])}, 15,
         cv::Scalar(255, 0, 0), -1);
+
+      prev_bot_theta = bot_theta;
     }
 
     //Send latest robot wheel values to bot (if used)

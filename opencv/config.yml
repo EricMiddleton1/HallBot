@@ -25,5 +25,8 @@ steer_pid:
   ki: 0
   kd: 0
 
+complementary_filter:
+  alpha: 0.9
+
 #robot:
 #  port: /dev/ttyUSB0
