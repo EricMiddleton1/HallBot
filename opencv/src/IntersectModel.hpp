@@ -29,7 +29,7 @@ public:
 	IntersectModel();
   IntersectModel(const std::array<Param*,2>& params);
 
-  std::pair<double, std::vector<Param*>> Evaluate(const std::vector<Param*>& params,
+  std::vector<Param*> Evaluate(const std::vector<Param*>& params,
       double threshold);
 
   Point getIntersectionPoint() const;

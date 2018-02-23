@@ -10,8 +10,8 @@ SerialPort::SerialPort(boost::asio::io_service& _ioService,
 	const std::string& port, int baud, const ReceiveHandler& _recvHandler)
 	:	ioService(_ioService)
 	, comPort(ioService)
-	,	recvBuffer(BUFFER_SIZE)
-  , recvHandler{_recvHandler} {
+  , recvHandler{_recvHandler}
+	,	recvBuffer(BUFFER_SIZE) {
 	
 	try {
 		configureComPort(port, baud);

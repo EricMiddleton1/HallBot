@@ -1,9 +1,10 @@
 #include "PID.hpp"
 
-PID::PID(float _kp, float _ki, float _kd)
-  : kp  {_kp}
-  , ki  {_ki}
-  , kd  {_kd}
+PID::PID(std::vector<IConfigurable::Param>&& params)
+  : IConfigurable{ {"kp", "ki", "kd"}, std::move(params) }
+  , kp  {std::stof(getParam("kp"))}
+  , ki  {std::stof(getParam("ki"))}
+  , kd  {std::stof(getParam("kd"))}
   , integral  {0.f}
   , lastError {0.f}
   , setpoint  {0.f} {
