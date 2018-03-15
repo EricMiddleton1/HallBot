@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Hallbot2</string>
+    <string name="title_activity_open_cvtest0">OpenCVTest0</string>
+    <string name="title_activity_open_cvtest_hough">OpenCVTestHough</string>
+</resources>
