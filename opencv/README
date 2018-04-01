@@ -1,0 +1,4 @@
+To run with ORB-SLAM2:
+  - Install pangolin
+  - Copy libORB_SLAM2.so to /usr/lib; run ldconfig as root
+

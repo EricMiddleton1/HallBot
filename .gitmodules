@@ -7,3 +7,6 @@
 [submodule "opencv/GRANSAC"]
 	path = opencv/GRANSAC
 	url = https://github.com/ericmiddleton1/GRANSAC
+[submodule "opencv/ORB_SLAM2"]
+	path = opencv/ORB_SLAM2
+	url = https://github.com/EricMiddleton1/ORB_SLAM2

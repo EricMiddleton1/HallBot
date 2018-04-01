@@ -9,6 +9,9 @@
 
 #include <yaml-cpp/yaml.h>
 
+//ORB-SLAM2
+#include <System.h>
+
 #include "Config.hpp"
 #include "DeviceManager.hpp"
 #include "EdgeDetector.hpp"
@@ -47,6 +50,11 @@ int main(void)
   if(config.hasEntry("robot")) {
     bot = std::make_unique<iRobot>(config.getParams("robot"));
   }
+
+  ORB_SLAM2::System slam("ORB_SLAM2/Vocabulary/ORBvoc.txt", "slam_config.yml",
+    ORB_SLAM2::System::MONOCULAR, true);
+
+  double time = 0.;
  
   //Set PID setpoint
   float hallwayX = 0.5f;
@@ -66,6 +74,9 @@ int main(void)
       continue;
     }
     auto frameSize = frame.size();
+
+    //Pass image into SLAM system
+    slam.TrackMonocular(frame, time);
     
     //Run through image processing pipeline
     frame_edges = edgeDetector->process(frame);
@@ -101,10 +112,11 @@ int main(void)
 		int endTime = cv::getTickCount();
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
+    time += static_cast<double>(endTime - startTime) / cv::getTickFrequency();
 
     //Display raw rame and edges/hough lines frame
-    imshow(WINDOW_NAME, frame);
-    imshow(DEBUG_WINDOW_NAME, frame_edges);
+    //imshow(WINDOW_NAME, frame);
+    //imshow(DEBUG_WINDOW_NAME, frame_edges);
   }
 
   return 0;

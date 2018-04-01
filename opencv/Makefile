@@ -18,9 +18,9 @@ RCOMPILE_FLAGS = -D NDEBUG
 # Additional debug-specific flags
 DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
-INCLUDES = -I $(SRC_PATH) -IGRANSAC/include `pkg-config --cflags opencv`
+INCLUDES = -I $(SRC_PATH) -IGRANSAC/include -IORB_SLAM2 -IORB_SLAM2/include -I/usr/local/include/eigen3 `pkg-config --cflags opencv`
 # General linker settings
-LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system -lyaml-cpp
+LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system -lyaml-cpp -LORB_SLAM2/lib -lORB_SLAM2 -lpangolin -lGL
 PI_LINK_FLAGS = -lraspicam -lraspicam_cv
 # Additional release-specific linker settings
 RLINK_FLAGS =
