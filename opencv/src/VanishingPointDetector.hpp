@@ -12,7 +12,10 @@ public:
   VanishingPointDetector(std::vector<IConfigurable::Param>&& params);
 
   float process(const std::vector<cv::Vec2f>& lines, cv::Vec2f& output);
+
+  bool enabled() const;
 private:
+  bool m_enabled;
   int threshold, iterations;
   GRANSAC::RANSAC<IntersectModel> estimator;
 };

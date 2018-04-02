@@ -4,10 +4,17 @@
 
 VanishingPointDetector::VanishingPointDetector(std::vector<IConfigurable::Param>&& params)
   : IConfigurable{ {"threshold", "iterations"}, std::move(params) }
+  , m_enabled{(getParam("enabled", "true") == "true") ? true : false}
   , threshold{std::stoi(getParam("threshold"))}
   , iterations{std::stoi(getParam("iterations"))} {
+  
+  if(m_enabled) {
+    estimator.Initialize(threshold, iterations);
+  }
+}
 
-  estimator.Initialize(threshold, iterations);
+bool VanishingPointDetector::enabled() const {
+  return m_enabled;
 }
 
 float VanishingPointDetector::process(const std::vector<cv::Vec2f>& lines,

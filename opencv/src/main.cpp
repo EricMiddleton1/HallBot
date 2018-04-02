@@ -54,11 +54,10 @@ int main(void)
   //Set PID setpoint
   float hallwayX = 0.5f;
   steerPID->set(0.5f);
+  
+  auto startTime = cv::getTickCount();
 
   while(cv::waitKey(1) == -1) {
-    //Start loop stopwatch
-		int startTime = cv::getTickCount();
-
     float steer = 0.f;
 
     cv::Mat frame, frame_edges, frameAnotated;
@@ -74,29 +73,31 @@ int main(void)
     slammer->process(frame);
     frameAnotated = slammer->draw();
     
-    //Run through image processing pipeline
-    frame_edges = edgeDetector->process(frame);
-    auto lines = houghTransformer->process(frame_edges);
-    cv::Vec2f vanishingPoint;
-    auto vpConfidence = vpDetector->process(lines, vanishingPoint);
-
-    //Draw hough lines over frame_edges image
-    houghTransformer->drawLines(lines, frame_edges);
+    //Run through vanishing point pipeline
+    if(vpDetector->enabled()) {
+      frame_edges = edgeDetector->process(frame);
+      auto lines = houghTransformer->process(frame_edges);
+      cv::Vec2f vanishingPoint;
+      auto vpConfidence = vpDetector->process(lines, vanishingPoint);
+      
+      //Draw hough lines over frame_edges image
+      houghTransformer->drawLines(lines, frame_edges);
     
-    //Update steer PID if vanishing point confidence > 0 (it detected a vanishing point)
-    if(vpConfidence > 0.f) {
-      auto curX = vanishingPoint[0] / frameSize.width;
-      hallwayX = 0.1f*curX + 0.9f*hallwayX;
-      steer = steerPID->update(hallwayX, 0.015);
-      steer = std::max(-100.f, std::min(100.f, steer));
+      //Update steer PID if vanishing point confidence > 0 (it detected a vanishing point)
+      if(vpConfidence > 0.f) {
+        auto curX = vanishingPoint[0] / frameSize.width;
+        hallwayX = 0.1f*curX + 0.9f*hallwayX;
+        steer = steerPID->update(hallwayX, 0.015);
+        steer = std::max(-100.f, std::min(100.f, steer));
 
-      circle(frame, {cvRound(hallwayX*frameSize.width), cvRound(vanishingPoint[1])}, 15,
-        cv::Scalar(0, 0, 255), -1);
-      circle(frame, {cvRound(vanishingPoint[0]), cvRound(vanishingPoint[1])}, 15,
-        cv::Scalar(255, 0, 0), -1);
+        circle(frame, {cvRound(hallwayX*frameSize.width), cvRound(vanishingPoint[1])}, 15,
+          cv::Scalar(0, 0, 255), -1);
+        circle(frame, {cvRound(vanishingPoint[0]), cvRound(vanishingPoint[1])}, 15,
+          cv::Scalar(255, 0, 0), -1);
 
-      std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
-        << steer << std::endl;
+        std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
+          << steer << std::endl;
+      }
     }
 
     //Send latest robot wheel values to bot (if used)
@@ -104,15 +105,19 @@ int main(void)
       bot->setWheels(100 - steer, 100 + steer);
     }
 
+    //Display raw rame and edges/hough lines frame
+    if(vpDetector->enabled()) {
+      imshow(WINDOW_NAME, frame);
+      imshow(DEBUG_WINDOW_NAME, frame_edges);
+    }
+    imshow("SLAM Frame", frameAnotated);
+
     //Stop loop stopwatch
-		int endTime = cv::getTickCount();
+		auto endTime = cv::getTickCount();
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
+    startTime = endTime;
 
-    //Display raw rame and edges/hough lines frame
-    imshow(WINDOW_NAME, frame);
-    imshow(DEBUG_WINDOW_NAME, frame_edges);
-    imshow("SLAM Frame", frameAnotated);
   }
 
   return 0;
