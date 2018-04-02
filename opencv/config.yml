@@ -1,6 +1,6 @@
 video_device:
-  name:       webcam
-  id:         0
+  name:       video file
+  file:       ../videos/car_2.mp4
   color_mode: bw
   max_height: 240
 
@@ -8,6 +8,11 @@ edge_detector:
   low_threshold:    50
   high_threshold:   150
   kernel_size:      3
+
+slam:
+  vocab_file:       ORB_SLAM2/Vocabulary/ORBvoc.bin
+  config_file:      slam_config.yml
+  visualizer:       true
 
 hough_transform:
   rho:                  1

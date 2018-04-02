@@ -9,14 +9,12 @@
 
 #include <yaml-cpp/yaml.h>
 
-//ORB-SLAM2
-#include <System.h>
-
 #include "Config.hpp"
 #include "DeviceManager.hpp"
 #include "EdgeDetector.hpp"
 #include "HoughTransform.hpp"
 #include "VanishingPointDetector.hpp"
+#include "Slammer.hpp"
 #include "iRobot.hpp"
 #include "PID.hpp"
 
@@ -44,6 +42,8 @@ int main(void)
     config.getParams("hough_transform"))};
   auto vpDetector{std::make_unique<VanishingPointDetector>(
     config.getParams("vanishing_point_detector"))};
+  auto slammer{std::make_unique<Slammer>(
+    config.getParams("slam"))};
   auto steerPID{std::make_unique<PID>(config.getParams("steer_pid"))};
 
   std::unique_ptr<iRobot> bot;
@@ -51,11 +51,6 @@ int main(void)
     bot = std::make_unique<iRobot>(config.getParams("robot"));
   }
 
-  ORB_SLAM2::System slam("ORB_SLAM2/Vocabulary/ORBvoc.txt", "slam_config.yml",
-    ORB_SLAM2::System::MONOCULAR, true);
-
-  double time = 0.;
- 
   //Set PID setpoint
   float hallwayX = 0.5f;
   steerPID->set(0.5f);
@@ -66,7 +61,7 @@ int main(void)
 
     float steer = 0.f;
 
-    cv::Mat frame, frame_edges;
+    cv::Mat frame, frame_edges, frameAnotated;
 
     //Try to grab frame from video device
     if(!videoDevice->getFrame(frame)) {
@@ -76,7 +71,8 @@ int main(void)
     auto frameSize = frame.size();
 
     //Pass image into SLAM system
-    slam.TrackMonocular(frame, time);
+    slammer->process(frame);
+    frameAnotated = slammer->draw();
     
     //Run through image processing pipeline
     frame_edges = edgeDetector->process(frame);
@@ -112,11 +108,11 @@ int main(void)
 		int endTime = cv::getTickCount();
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
-    time += static_cast<double>(endTime - startTime) / cv::getTickFrequency();
 
     //Display raw rame and edges/hough lines frame
-    //imshow(WINDOW_NAME, frame);
-    //imshow(DEBUG_WINDOW_NAME, frame_edges);
+    imshow(WINDOW_NAME, frame);
+    imshow(DEBUG_WINDOW_NAME, frame_edges);
+    imshow("SLAM Frame", frameAnotated);
   }
 
   return 0;
