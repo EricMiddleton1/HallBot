@@ -17,6 +17,8 @@
 #include "Slammer.hpp"
 #include "iRobot.hpp"
 #include "PID.hpp"
+#include "VRPN.hpp"
+#include "Log.hpp"
 
 const std::string WINDOW_NAME = "Vanishing Point Detector";
 const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
@@ -42,14 +44,28 @@ int main(void)
     config.getParams("hough_transform"))};
   auto vpDetector{std::make_unique<VanishingPointDetector>(
     config.getParams("vanishing_point_detector"))};
-  auto slammer{std::make_unique<Slammer>(
-    config.getParams("slam"))};
   auto steerPID{std::make_unique<PID>(config.getParams("steer_pid"))};
 
+  std::unique_ptr<Slammer> slammer;
+  if(config.hasEntry("slam")) {
+    slammer = std::make_unique<Slammer>(config.getParams("slam"));
+  }
+  
   std::unique_ptr<iRobot> bot;
   if(config.hasEntry("robot")) {
     bot = std::make_unique<iRobot>(config.getParams("robot"));
   }
+
+  std::unique_ptr<VRPN> vrpn;
+  if(config.hasEntry("vrpn")) {
+    vrpn = std::make_unique<VRPN>(config.getParams("vrpn"));
+  }
+
+  std::unique_ptr<Log> log;
+  if(config.hasEntry("log")) {
+    log = std::make_unique<Log>(config.getParams("log"));
+  }
+
 
   //Set PID setpoint
   float hallwayX = 0.5f;
@@ -70,8 +86,10 @@ int main(void)
     auto frameSize = frame.size();
 
     //Pass image into SLAM system
-    slammer->process(frame);
-    frameAnotated = slammer->draw();
+    if(slammer) {
+      slammer->process(frame);
+      frameAnotated = slammer->draw();
+    }
     
     //Run through vanishing point pipeline
     if(vpDetector->enabled()) {
@@ -105,12 +123,22 @@ int main(void)
       bot->setWheels(100 - steer, 100 + steer);
     }
 
+    if(log) {
+      if(vrpn) {
+        log->add(vrpn->getUpdate());
+      }
+      log->add(frame);
+      log->write();
+    }
+
     //Display raw rame and edges/hough lines frame
     if(vpDetector->enabled()) {
       imshow(WINDOW_NAME, frame);
       imshow(DEBUG_WINDOW_NAME, frame_edges);
     }
-    imshow("SLAM Frame", frameAnotated);
+    if(slammer) {
+      imshow("SLAM Frame", frameAnotated);
+    }
 
     //Stop loop stopwatch
 		auto endTime = cv::getTickCount();

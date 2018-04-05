@@ -10,3 +10,6 @@
 [submodule "opencv/ORB_SLAM2"]
 	path = opencv/ORB_SLAM2
 	url = https://github.com/EricMiddleton1/ORB_SLAM2
+[submodule "opencv/vrpn"]
+	path = opencv/vrpn
+	url = https://github.com/vrpn/vrpn
