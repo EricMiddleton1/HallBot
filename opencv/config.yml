@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../videos/coover02.mp4
+  file:       ../../calibration/pi.h264
   color_mode: bw
   max_height: 480
 
@@ -11,7 +11,7 @@ edge_detector:
 
 slam:
   vocab_file:       ORB_SLAM2/Vocabulary/ORBvoc.bin
-  config_file:      slam_config.yml
+  config_file:      slam_config_pi.yml
   visualizer:       true
 
 hough_transform:
@@ -30,6 +30,12 @@ steer_pid:
   kp: 200
   ki: 0
   kd: 0
+
+#vrpn:
+#  name:                 UAV@192.168.0.120:3883
+
+#log:
+#  name:                 test01
 
 #robot:
 #  port: /dev/ttyUSB0
