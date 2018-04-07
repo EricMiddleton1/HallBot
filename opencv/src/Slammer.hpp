@@ -15,6 +15,10 @@ public:
 
   void process(const cv::Mat& input);
 
+  cv::Mat getLastMapPoint();
+
+  int getStateofTrack();
+
   cv::Mat draw();
 
 private:

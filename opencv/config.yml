@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../../calibration/pi.h264
+  file:       ../../videos/calibrated/three.mp4
   color_mode: bw
   max_height: 480
 
@@ -11,7 +11,7 @@ edge_detector:
 
 slam:
   vocab_file:       ORB_SLAM2/Vocabulary/ORBvoc.bin
-  config_file:      slam_config_pi.yml
+  config_file:      slam_config_phone.yml
   visualizer:       true
 
 hough_transform:

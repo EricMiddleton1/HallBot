@@ -25,7 +25,7 @@ int main(void)
 {
   //Load YAML configuration file
   Config config{"config.yml"};
-  
+
   //Initialize objects based on YAML configuration parameters
   auto videoParams = config.getParams("video_device");
   auto videoName = std::find_if(videoParams.begin(), videoParams.end(),
@@ -54,7 +54,7 @@ int main(void)
   //Set PID setpoint
   float hallwayX = 0.5f;
   steerPID->set(0.5f);
-  
+
   auto startTime = cv::getTickCount();
 
   while(cv::waitKey(1) == -1) {
@@ -72,17 +72,17 @@ int main(void)
     //Pass image into SLAM system
     slammer->process(frame);
     frameAnotated = slammer->draw();
-    
+
     //Run through vanishing point pipeline
     if(vpDetector->enabled()) {
       frame_edges = edgeDetector->process(frame);
       auto lines = houghTransformer->process(frame_edges);
       cv::Vec2f vanishingPoint;
       auto vpConfidence = vpDetector->process(lines, vanishingPoint);
-      
+
       //Draw hough lines over frame_edges image
       houghTransformer->drawLines(lines, frame_edges);
-    
+
       //Update steer PID if vanishing point confidence > 0 (it detected a vanishing point)
       if(vpConfidence > 0.f) {
         auto curX = vanishingPoint[0] / frameSize.width;
@@ -117,7 +117,10 @@ int main(void)
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
     startTime = endTime;
-
+    auto pt = slammer->getLastMapPoint();
+    if (slammer->getStateofTrack()==2 && !pt.empty()) {
+      std::cout << " New Point\n" << pt << std::endl;
+    }
   }
 
   return 0;
