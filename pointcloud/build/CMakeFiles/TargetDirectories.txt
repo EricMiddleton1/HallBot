@@ -1,0 +1,3 @@
+/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/edit_cache.dir
+/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/rebuild_cache.dir
+/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/pcl_testing.dir
