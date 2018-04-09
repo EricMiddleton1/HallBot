@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../../calibration/pi.h264
+  file:       ../videos/co3050_rotate.mp4
   color_mode: bw
   max_height: 480
 
@@ -11,7 +11,7 @@ edge_detector:
 
 slam:
   vocab_file:       ORB_SLAM2/Vocabulary/ORBvoc.bin
-  config_file:      slam_config_pi.yml
+  config_file:      slam_config_phone.yml
   visualizer:       true
 
 hough_transform:
@@ -27,7 +27,7 @@ vanishing_point_detector:
   iterations:           100
 
 steer_pid:
-  kp: 200
+  kp: 1
   ki: 0
   kd: 0
 
@@ -37,5 +37,8 @@ steer_pid:
 #log:
 #  name:                 test01
 
-#robot:
-#  port: /dev/ttyUSB0
+robot:
+  port:                  /dev/ttyUSB0
+  initial_speed:         50
+  tracking_speed:        150
+  retracing_speed:       50

@@ -5,13 +5,17 @@
 #include <cmath>
 
 iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
-  : IConfigurable{ {"port"}, std::move(params) }
+  : IConfigurable{ {"port", "initial_speed", "tracking_speed", "retracing_speed"},
+      std::move(params) }
   , ioWork{std::make_unique<boost::asio::io_service::work>(ioService)}
   , port{ioService, getParam("port"), 57600, [this](std::vector<uint8_t> data) {
       recvHandler(data);
     }}
   , pos{0.f, 0.f}
   , angle{0.f}
+  , state{State::Initializing}
+  , drivingSpeeds{std::stoi(getParam("initial_speed")),
+      std::stoi(getParam("tracking_speed")), std::stoi(getParam("retracing_speed"))}
   , asyncThread{ [this](){
       ioService.run();
       std::cout << "[Error] SerialPort: Thread close" << std::endl;
@@ -35,13 +39,16 @@ void iRobot::start() {
     static_cast<uint8_t>(SensorPacket::Angle)});
 }
 
-void iRobot::setWheels(int left, int right) {
-  left = std::min(500, std::max(-500, left));
-  right = std::min(500, std::max(-500, right));
+void iRobot::setWheels(float left, float right) {
+  auto speed = drivingSpeeds[static_cast<int>(state)];
+  int iLeft = speed*left, iRight = speed*right;
+
+  iLeft = std::min(500, std::max(-500, iLeft));
+  iRight = std::min(500, std::max(-500, iRight));
 
   port.send({static_cast<uint8_t>(Command::DriveDirect),
-    static_cast<uint8_t>(right >> 8), static_cast<uint8_t>(right & 0xFF),
-    static_cast<uint8_t>(left >> 8), static_cast<uint8_t>(left & 0xFF)});
+    static_cast<uint8_t>(iRight >> 8), static_cast<uint8_t>(iRight & 0xFF),
+    static_cast<uint8_t>(iLeft >> 8), static_cast<uint8_t>(iLeft & 0xFF)});
 }
 
 iRobot::Position iRobot::getPosition() const {
@@ -52,6 +59,14 @@ iRobot::Position iRobot::getPosition() const {
 float iRobot::getAngle() const {
   std::lock_guard<std::mutex> lock(mutex);
   return angle;
+}
+
+iRobot::State iRobot::getState() const {
+  return state;
+}
+
+void iRobot::setState(State s) {
+  state = s;
 }
 
 void iRobot::recvHandler(std::vector<uint8_t> data) {

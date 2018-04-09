@@ -10,13 +10,17 @@ Slammer::Slammer(std::vector<IConfigurable::Param>&& params)
   , startTime{std::chrono::steady_clock::now()} {
 }
 
-void Slammer::process(const cv::Mat& input) {
+cv::Mat Slammer::process(const cv::Mat& input) {
   auto time = std::chrono::steady_clock::now() - startTime;
   double t = std::chrono::duration_cast<std::chrono::microseconds>(time).count()/1000000.;
   
-  slam.TrackMonocular(input, t);
+  return slam.TrackMonocular(input, t);
 }
 
 cv::Mat Slammer::draw() {
   return slam.DrawFrame();
+}
+
+int Slammer::getTrackingState() {
+  return slam.GetTrackingState();
 }

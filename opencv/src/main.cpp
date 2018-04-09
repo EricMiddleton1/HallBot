@@ -21,6 +21,8 @@
 const std::string WINDOW_NAME = "Vanishing Point Detector";
 const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
 
+iRobot::State convertTrackingState(int trackingState);
+
 int main(void)
 {
   //Load YAML configuration file
@@ -52,8 +54,7 @@ int main(void)
   }
 
   //Set PID setpoint
-  float hallwayX = 0.5f;
-  steerPID->set(0.5f);
+  steerPID->set(0.f);
   
   auto startTime = cv::getTickCount();
 
@@ -70,9 +71,21 @@ int main(void)
     auto frameSize = frame.size();
 
     //Pass image into SLAM system
-    slammer->process(frame);
+    auto pose = slammer->process(frame);
     frameAnotated = slammer->draw();
+    bot->setState(convertTrackingState(slammer->getTrackingState()));
     
+    if(!pose.empty()) {
+      auto origin = cv::Mat::ones(4, 1, CV_32FC1);
+      
+      auto cameraPos = pose * origin;
+
+      //float botX = -pose.at<float>(2, 3), botY = pose.at<float>(0, 3);
+      //std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
+      std::cout << "[Info] Camera position: " << cameraPos << std::endl;
+    }
+
+/*
     //Run through vanishing point pipeline
     if(vpDetector->enabled()) {
       frame_edges = edgeDetector->process(frame);
@@ -99,10 +112,10 @@ int main(void)
           << steer << std::endl;
       }
     }
-
+*/
     //Send latest robot wheel values to bot (if used)
     if(bot) {
-      bot->setWheels(100 - steer, 100 + steer);
+      bot->setWheels(1.f - steer, 1.f + steer);
     }
 
     //Display raw rame and edges/hough lines frame
@@ -112,13 +125,36 @@ int main(void)
     }
     imshow("SLAM Frame", frameAnotated);
 
+
     //Stop loop stopwatch
 		auto endTime = cv::getTickCount();
+    /*
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
-			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
+			/ cv::getTickFrequency()*1000.f << "ms" << std::endl; */
     startTime = endTime;
 
   }
 
   return 0;
+}
+
+
+iRobot::State convertTrackingState(int trackingState) {
+  iRobot::State state;
+
+  switch(trackingState) {
+    case ORB_SLAM2::Tracking::OK:
+      state = iRobot::State::Tracking;
+    break;
+
+    case ORB_SLAM2::Tracking::LOST:
+      state = iRobot::State::Retracing;
+    break;
+
+    default:
+      state = iRobot::State::Initializing;
+    break;
+  }
+
+  return state;
 }

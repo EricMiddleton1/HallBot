@@ -16,13 +16,22 @@ public:
     float x, y;
   };
 
+  enum class State {
+    Initializing = 0,
+    Tracking,
+    Retracing
+  };
+
   iRobot(std::vector<IConfigurable::Param>&& params);
   ~iRobot();
 
-  void setWheels(int left, int right);
+  void setWheels(float left, float right);
 
   Position getPosition() const;
   float getAngle() const;
+
+  void setState(State);
+  State getState() const;
 
 private:
   enum class Command {
@@ -93,6 +102,9 @@ private:
 
   Position pos;
   float angle;
+
+  State state;
+  int drivingSpeeds[3];
 
   mutable std::mutex mutex;
 
