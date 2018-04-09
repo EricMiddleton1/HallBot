@@ -120,6 +120,7 @@ int main(void)
     auto pt = slammer->getLastMapPoint();
     if (slammer->getStateofTrack()==2 && !pt.empty()) {
       std::cout << " New Point\n" << pt << std::endl;
+      slammer->saveAllMapPoints();
     }
   }
 

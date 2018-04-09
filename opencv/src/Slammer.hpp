@@ -5,6 +5,7 @@
 #include "IConfigurable.hpp"
 
 #include <chrono>
+#include <fstream>
 
 //ORB-SLAM2
 #include <System.h>
@@ -16,6 +17,8 @@ public:
   void process(const cv::Mat& input);
 
   cv::Mat getLastMapPoint();
+
+  void saveAllMapPoints();
 
   int getStateofTrack();
 

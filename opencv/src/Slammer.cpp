@@ -41,6 +41,35 @@ cv::Mat Slammer::getLastMapPoint(){
   }
 }
 
+void Slammer::saveAllMapPoints(){
+
+  ofstream pcl_file;
+  pcl_file.open ("pcl_file.pcd");
+
+  auto pts = slam.GetTrackedMapPoints();
+  // empty list check
+  if(!pts.empty()) {
+    for(int i = 0; i < pts.size(); i++){
+      // null MapPoint check
+      if(pts.at(i)){
+        auto pos = pts.at(i)->GetWorldPos();
+        // empty WorldPos check
+        if(!pos.empty()){
+          pcl_file << pos.at<int>(0) << " "
+                 << pos.at<int>(1) << " "
+                 << pos.at<int>(2) << "\n";
+        }
+      }
+    }
+    std::cout << "File Written" << std::endl;
+  } else {
+    std::cout << "ERROR: SAVE FAILED" << std::endl;
+  }
+
+  pcl_file.close();
+}
+
+
 int Slammer::getStateofTrack() {
   return slam.GetTrackingState();
 }
