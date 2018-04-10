@@ -55,9 +55,9 @@ void Slammer::saveAllMapPoints(){
         auto pos = pts.at(i)->GetWorldPos();
         // empty WorldPos check
         if(!pos.empty()){
-          pcl_file << pos.at<int>(0) << " "
-                 << pos.at<int>(1) << " "
-                 << pos.at<int>(2) << "\n";
+          pcl_file << pos.at<float>(0) << " "
+                 << pos.at<float>(1) << " "
+                 << pos.at<float>(2) << "\n";
         }
       }
     }
