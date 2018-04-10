@@ -8,9 +8,9 @@ SRC_EXT = cpp
 # Path to the source directory, relative to the makefile
 SRC_PATH = src
 # Path to the pi-specific source directory, relative to the source directory
-PI_SRC_PATH = pi 
+PI_SRC_PATH = pi
 # Space-separated pkg-config libraries used by this project
-LIBS = 
+LIBS =
 # General compiler flags
 COMPILE_FLAGS = -std=c++14 -Wall -Wextra -pedantic -fopenmp -g
 # Additional release-specific flags
@@ -18,16 +18,16 @@ RCOMPILE_FLAGS = -D NDEBUG
 # Additional debug-specific flags
 DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
-INCLUDES = -I $(SRC_PATH) -IGRANSAC/include -IORB_SLAM2 -IORB_SLAM2/include -I/usr/local/include/eigen3 `pkg-config --cflags opencv`
+INCLUDES = -I $(SRC_PATH) -IGRANSAC/include -IORB_SLAM2 -IORB_SLAM2/include -I/usr/local/include/eigen3 `pkg-config --cflags opencv pcl_common-1.8`
 # General linker settings
-LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system -lyaml-cpp -LORB_SLAM2/lib -lORB_SLAM2 -lpangolin -lGL
+LINK_FLAGS = `pkg-config --libs opencv pcl_common-1.8` -fopenmp -lboost_system -lyaml-cpp -LORB_SLAM2/lib -lORB_SLAM2 -lpangolin -lGL
 PI_LINK_FLAGS = -lraspicam -lraspicam_cv
 # Additional release-specific linker settings
 RLINK_FLAGS =
 # Additional debug-specific linker settings
 DLINK_FLAGS =
 # Destination directory, like a jail or mounted system
-DESTDIR = / 
+DESTDIR = /
 # Install path (bin/ is appended automatically)
 INSTALL_PREFIX = usr/local
 #### END PROJECT SETTINGS ####
