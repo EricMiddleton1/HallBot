@@ -19,6 +19,8 @@ public:
 
   void send(std::vector<uint8_t>&& data);
 
+  bool connected() const;
+
 private:
   static const int BUFFER_SIZE;
 

@@ -55,6 +55,9 @@ int main(void)
 
   //Set PID setpoint
   steerPID->set(0.f);
+
+  cv::Mat track(600, 600, CV_8UC3, cv::Scalar(255, 255, 255));
+  cv::Vec2f lastBotPos = {0.f, 0.f};
   
   auto startTime = cv::getTickCount();
 
@@ -76,14 +79,24 @@ int main(void)
     bot->setState(convertTrackingState(slammer->getTrackingState()));
     
     if(!pose.empty()) {
-      auto origin = cv::Mat::ones(4, 1, CV_32FC1);
-      
-      auto cameraPos = pose * origin;
+      auto R = pose(cv::Rect(0, 0, 3, 3));
+      auto T = pose(cv::Rect(3, 0, 1, 3));
+
+      cv::Mat cameraPos = -(R.inv()) * T;
 
       //float botX = -pose.at<float>(2, 3), botY = pose.at<float>(0, 3);
-      //std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
-      std::cout << "[Info] Camera position: " << cameraPos << std::endl;
+      float botX = cameraPos.at<float>(0, 0), botY = cameraPos.at<float>(0, 2);
+      std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
+      //std::cout << "[Info] Camera position: " << cameraPos << std::endl;
+
+      bot->setCameraPose({botX, botY}, 0.f);
     }
+    cv::Vec2f newBotPos = bot->getPosition();
+    cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
+    cv::Vec2f trackP2 = newBotPos * 300.f/4.f;
+    cv::line(track, {300+trackP1[0], 300+trackP1[1]},
+      {300+trackP2[0], 300+trackP2[1]}, cv::Scalar(255, 0, 0), 5);
+    lastBotPos = newBotPos;
 
 /*
     //Run through vanishing point pipeline
@@ -124,7 +137,7 @@ int main(void)
       imshow(DEBUG_WINDOW_NAME, frame_edges);
     }
     imshow("SLAM Frame", frameAnotated);
-
+    imshow("Camera Track", track);
 
     //Stop loop stopwatch
 		auto endTime = cv::getTickCount();

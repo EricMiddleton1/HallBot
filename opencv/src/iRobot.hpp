@@ -3,6 +3,9 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <deque>
+
+#include <opencv2/core/core.hpp>
 
 #include <boost/asio.hpp>
 
@@ -12,10 +15,6 @@
 
 class iRobot : public IConfigurable {
 public:
-  struct Position {
-    float x, y;
-  };
-
   enum class State {
     Initializing = 0,
     Tracking,
@@ -27,13 +26,25 @@ public:
 
   void setWheels(float left, float right);
 
-  Position getPosition() const;
+  cv::Vec2f getPosition() const;
   float getAngle() const;
+
+  void setCameraPose(const cv::Vec2f&, float angle);
+  void setCameraAngle(float angle);
+
+  float getCameraScale() const;
 
   void setState(State);
   State getState() const;
 
+  bool retraceStep();
+
 private:
+  struct Movement {
+    int16_t left, right;
+    uint32_t startTime, stopTime;
+  };
+
   enum class Command {
     Start = 128,
     Baud = 129,
@@ -91,8 +102,12 @@ private:
   void recvHandler(std::vector<uint8_t> data);
   bool parseSensorStream(const std::vector<uint8_t>&, int& start);
   bool processSensorUpdate();
+  void setWheelsDirect(int16_t left, int16_t right);
+  uint32_t getTime() const;
 
   static int16_t parseInt16(const std::vector<uint8_t>& buffer, int start);
+
+  static float dist(const cv::Vec2f& p1, const cv::Vec2f& p2);
 
   boost::asio::io_service ioService;
   std::unique_ptr<boost::asio::io_service::work> ioWork;
@@ -100,11 +115,16 @@ private:
 
   std::vector<uint8_t> sensorStream;
 
-  Position pos;
+  cv::Vec2f pos;
   float angle;
+  float distAccum, cameraScale;
 
   State state;
   int drivingSpeeds[3];
+  
+  std::deque<Movement> motion;
+  std::chrono::steady_clock::time_point startTime;
+  uint32_t retraceMovementDone;
 
   mutable std::mutex mutex;
 

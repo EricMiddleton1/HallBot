@@ -19,7 +19,9 @@ iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
   , asyncThread{ [this](){
       ioService.run();
       std::cout << "[Error] SerialPort: Thread close" << std::endl;
-    }} {
+    }}
+  , startTime{std::chrono::steady_clock::now()}
+  , retraceMovementDone{0} {
 
   start();
 }
@@ -45,13 +47,39 @@ void iRobot::setWheels(float left, float right) {
 
   iLeft = std::min(500, std::max(-500, iLeft));
   iRight = std::min(500, std::max(-500, iRight));
+   
+  setWheelsDirect(iLeft, iRight);
 
-  port.send({static_cast<uint8_t>(Command::DriveDirect),
-    static_cast<uint8_t>(iRight >> 8), static_cast<uint8_t>(iRight & 0xFF),
-    static_cast<uint8_t>(iLeft >> 8), static_cast<uint8_t>(iLeft & 0xFF)});
+  auto curTime = getTime();
+
+  if(state == State::Tracking) {
+    if(!motion.empty() && (motion.back().left != iLeft) &&
+      (motion.back().right != iRight)) {
+      //Mark that previous motion is done
+      motion.back().stopTime = curTime;
+      
+      //Push new motion onto stack
+      motion.push_back({iLeft, iRight, curTime, curTime});
+
+      std::cout << "[Info] iRobot: Ending previous movement and pushing new movement "
+        "onto motion stack" << std::endl;
+    }
+    else if(motion.empty()) {
+      std::cout << "[Info] iRobot: Pushing first new movement onto motion stack"
+        << std::endl;
+      motion.push_back({iLeft, iRight, curTime, curTime});
+    }
+  }
 }
 
-iRobot::Position iRobot::getPosition() const {
+void iRobot::setWheelsDirect(int16_t left, int16_t right) {
+  port.send({static_cast<uint8_t>(Command::DriveDirect),
+    static_cast<uint8_t>(right >> 8), static_cast<uint8_t>(right & 0xFF),
+    static_cast<uint8_t>(left >> 8), static_cast<uint8_t>(left & 0xFF)});
+}
+
+
+cv::Vec2f iRobot::getPosition() const {
   std::lock_guard<std::mutex> lock(mutex);
   return pos;
 }
@@ -61,12 +89,85 @@ float iRobot::getAngle() const {
   return angle;
 }
 
+void iRobot::setCameraPose(const cv::Vec2f& p, float a) {
+  static cv::Vec2f lastCameraPos = {0.f, 0.f};
+
+  std::lock_guard<std::mutex> lock(mutex);
+
+  if(port.connected()) {
+    //Compute/update camera scale factor
+    float cameraDist = dist(lastCameraPos, p);
+    if(cameraDist != 0.f) {
+      float newCamScale = distAccum / cameraDist;
+      float alpha = (cameraScale == 0.f) ? 1.f : 0.1f;
+      cameraScale = alpha*newCamScale + (1.f-alpha)*cameraScale;
+    }
+    distAccum = 0.f;
+  }
+  else {
+    //Assume scale=1 when no encoder data is available
+    cameraScale = 1.f;
+  }
+
+  pos = cameraScale * p;
+  angle = a;
+  lastCameraPos = p;
+}
+
 iRobot::State iRobot::getState() const {
   return state;
 }
 
 void iRobot::setState(State s) {
   state = s;
+
+  if(state == State::Retracing) {
+    //End current movement
+    setWheels(0, 0);
+    if(!motion.empty()) {
+      motion.back().stopTime = getTime();
+    }
+  }
+  else if(state == State::Tracking) {
+    if(!motion.empty() && retraceMovementDone != 0) {
+      auto dt = static_cast<int64_t>(retraceMovementDone) - getTime();
+      
+      if(dt > 0) {
+        motion.back().stopTime = motion.back().startTime + dt;
+      }
+      else {
+        motion.pop_back();
+      }
+    }
+    retraceMovementDone = 0;
+  }
+}
+
+bool iRobot::retraceStep() {
+  if(state != State::Retracing || motion.empty()) {
+    return false;
+  }
+
+  auto curTime = getTime();
+ 
+  if(retraceMovementDone == 0) {
+    retraceMovementDone = curTime + (motion.back().stopTime - motion.back().stopTime);
+    setWheelsDirect(-motion.back().left, -motion.back().right);
+  }
+  else if(curTime >= retraceMovementDone) {
+    motion.pop_back();
+    
+    if(motion.empty()) {
+      setWheelsDirect(0, 0);
+      return false;
+    }
+    else {
+      retraceMovementDone = curTime + (motion.back().stopTime - motion.back().stopTime);
+      setWheelsDirect(-motion.back().left, -motion.back().right);
+    }
+  }
+
+  return true;
 }
 
 void iRobot::recvHandler(std::vector<uint8_t> data) {
@@ -130,19 +231,31 @@ bool iRobot::processSensorUpdate() {
       << std::endl;
   }
 
-  auto dist = parseInt16(sensorStream, 3);
+  auto dist = parseInt16(sensorStream, 3) / 1000.f;
   auto ang_change = parseInt16(sensorStream, 6);
 
   {
     std::lock_guard<std::mutex> lock(mutex);
 
+    distAccum += dist;
+
     angle += ang_change * M_PI / 180.;
-    pos.x += dist * std::cos(angle);
-    pos.y += dist * std::sin(angle);
+    pos[0] += dist * std::cos(angle);
+    pos[1] += dist * std::sin(angle);
   }
   return true;
 }
 
+uint32_t iRobot::getTime() const {
+  auto time = std::chrono::steady_clock::now() - startTime;
+  return std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
+}
+
 int16_t iRobot::parseInt16(const std::vector<uint8_t>& buffer, int index) {
   return (buffer[index] << 8) | buffer[index + 1];
+}
+
+float iRobot::dist(const cv::Vec2f& p1, const cv::Vec2f& p2) {
+  float dx = p1[0]-p2[0], dy = p1[1]-p2[1];
+  return std::sqrt(dx*dx + dy*dy);
 }
