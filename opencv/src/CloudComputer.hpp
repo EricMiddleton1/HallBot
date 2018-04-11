@@ -15,7 +15,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/console/parse.h>
 #include <pcl/common/transforms.h>
-#include <pcl/visualization/pcl_visualizer.h>
+//BROKEN
+//#include <pcl/visualization/pcl_visualizer.h>
 
 class CloudComputer : public IConfigurable {
 public:

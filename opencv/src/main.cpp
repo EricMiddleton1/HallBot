@@ -117,11 +117,12 @@ int main(void)
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
     startTime = endTime;
-    auto pt = slammer->getLastMapPoint();
-    if (slammer->getStateofTrack()==2 && !pt.empty()) {
-      std::cout << " New Point\n" << pt << std::endl;
-      slammer->saveAllMapPoints();
-    }
+    // auto pt = slammer->getLastMapPoint();
+    // if (slammer->getStateofTrack()==2 && !pt.empty()) {
+    //   std::cout << " New Point\n" << pt << std::endl;
+    //   slammer->saveAllMapPoints();
+    // }
+    slammer->saveAllMapPoints();
   }
 
   return 0;

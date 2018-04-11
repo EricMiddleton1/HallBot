@@ -9,6 +9,10 @@
 
 //ORB-SLAM2
 #include <System.h>
+#include <Map.h>
+#include <MapPoint.h>
+#include <KeyFrame.h>
+#include <pangolin/pangolin.h>
 
 class Slammer : public IConfigurable {
 public:
