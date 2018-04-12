@@ -41,7 +41,7 @@ public:
 
 private:
   struct Movement {
-    int16_t left, right;
+    float left, right;
     uint32_t startTime, stopTime;
   };
 

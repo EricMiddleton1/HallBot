@@ -59,7 +59,7 @@ void iRobot::setWheels(float left, float right) {
       motion.back().stopTime = curTime;
       
       //Push new motion onto stack
-      motion.push_back({iLeft, iRight, curTime, curTime});
+      motion.push_back({left, right, curTime, curTime});
 
       std::cout << "[Info] iRobot: Ending previous movement and pushing new movement "
         "onto motion stack" << std::endl;
@@ -67,12 +67,15 @@ void iRobot::setWheels(float left, float right) {
     else if(motion.empty()) {
       std::cout << "[Info] iRobot: Pushing first new movement onto motion stack"
         << std::endl;
-      motion.push_back({iLeft, iRight, curTime, curTime});
+      motion.push_back({left, right, curTime, curTime});
     }
   }
 }
 
 void iRobot::setWheelsDirect(int16_t left, int16_t right) {
+  std::cout << "[Info] iRobot: setting wheels to (" << left << ", " << right << ")"
+    << std::endl;
+  
   port.send({static_cast<uint8_t>(Command::DriveDirect),
     static_cast<uint8_t>(right >> 8), static_cast<uint8_t>(right & 0xFF),
     static_cast<uint8_t>(left >> 8), static_cast<uint8_t>(left & 0xFF)});
@@ -119,27 +122,30 @@ iRobot::State iRobot::getState() const {
 }
 
 void iRobot::setState(State s) {
+  auto oldState = state;
   state = s;
 
-  if(state == State::Retracing) {
-    //End current movement
-    setWheels(0, 0);
-    if(!motion.empty()) {
-      motion.back().stopTime = getTime();
-    }
-  }
-  else if(state == State::Tracking) {
-    if(!motion.empty() && retraceMovementDone != 0) {
-      auto dt = static_cast<int64_t>(retraceMovementDone) - getTime();
-      
-      if(dt > 0) {
-        motion.back().stopTime = motion.back().startTime + dt;
-      }
-      else {
-        motion.pop_back();
+  if(state != oldState) {
+    if(state == State::Retracing) {
+      //End current movement
+      setWheels(0, 0);
+      if(!motion.empty()) {
+        motion.back().stopTime = getTime();
       }
     }
-    retraceMovementDone = 0;
+    else if(state == State::Tracking) {
+      if(!motion.empty() && retraceMovementDone != 0) {
+        auto dt = static_cast<int64_t>(retraceMovementDone) - getTime();
+        
+        if(dt > 0) {
+          motion.back().stopTime = motion.back().startTime + dt;
+        }
+        else {
+          motion.pop_back();
+        }
+      }
+      retraceMovementDone = 0;
+    }
   }
 }
 
@@ -155,7 +161,7 @@ bool iRobot::retraceStep() {
  
   if(retraceMovementDone == 0) {
     retraceMovementDone = curTime + (motion.back().stopTime - motion.back().startTime);
-    setWheelsDirect(-motion.back().left, -motion.back().right);
+    setWheels(-motion.back().left, -motion.back().right);
 
     std::cout << "[Info] Retracing movement (" << motion.back().left << ", "
       << motion.back().right << ") for " << retraceMovementDone-curTime << "ms"
@@ -173,7 +179,7 @@ bool iRobot::retraceStep() {
     }
     else {
       retraceMovementDone = curTime + (motion.back().stopTime - motion.back().startTime);
-      setWheelsDirect(-motion.back().left, -motion.back().right);
+      setWheels(-motion.back().left, -motion.back().right);
       std::cout << "[Info] Retracing movement (" << motion.back().left << ", "
         << motion.back().right << ") for " << retraceMovementDone-curTime << "ms"
         << std::endl;

@@ -91,7 +91,7 @@ int main(void)
     }
 
     if(newState == iRobot::State::Retracing) {
-      std::cout << "[Info] Retracing..." << std::endl;
+      //std::cout << "[Info] Retracing..." << std::endl;
       bot->retraceStep();
     }
     
@@ -103,7 +103,7 @@ int main(void)
 
       //float botX = -pose.at<float>(2, 3), botY = pose.at<float>(0, 3);
       float botX = cameraPos.at<float>(0, 0), botY = cameraPos.at<float>(0, 2);
-      std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
+      //std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
       //std::cout << "[Info] Camera position: " << cameraPos << std::endl;
 
       bot->setCameraPose({botX, botY}, 0.f);
@@ -143,10 +143,6 @@ int main(void)
       }
     }
 */
-    //Send latest robot wheel values to bot (if used)
-    if(bot) {
-      bot->setWheels(1.f - steer, 1.f + steer);
-    }
 
     //Display raw rame and edges/hough lines frame
     if(vpDetector->enabled()) {
