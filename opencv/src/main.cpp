@@ -61,6 +61,10 @@ int main(void)
   
   auto startTime = cv::getTickCount();
 
+  if(bot) {
+    bot->setWheels(1.f, 1.f);
+  }
+
   while(cv::waitKey(1) == -1) {
     float steer = 0.f;
 
@@ -76,7 +80,20 @@ int main(void)
     //Pass image into SLAM system
     auto pose = slammer->process(frame);
     frameAnotated = slammer->draw();
+
+    auto oldState = bot->getState();
     bot->setState(convertTrackingState(slammer->getTrackingState()));
+    auto newState = bot->getState();
+    if(newState != oldState) {
+      if(newState != iRobot::State::Retracing) {
+        bot->setWheels(1.f, 1.f);
+      }
+    }
+
+    if(newState == iRobot::State::Retracing) {
+      std::cout << "[Info] Retracing..." << std::endl;
+      bot->retraceStep();
+    }
     
     if(!pose.empty()) {
       auto R = pose(cv::Rect(0, 0, 3, 3));

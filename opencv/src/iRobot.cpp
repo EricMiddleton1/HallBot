@@ -145,25 +145,39 @@ void iRobot::setState(State s) {
 
 bool iRobot::retraceStep() {
   if(state != State::Retracing || motion.empty()) {
+    if(motion.empty()) {
+      std::cout << "[Error] iRobot: Retracing stack empty" << std::endl;
+    }
     return false;
   }
 
   auto curTime = getTime();
  
   if(retraceMovementDone == 0) {
-    retraceMovementDone = curTime + (motion.back().stopTime - motion.back().stopTime);
+    retraceMovementDone = curTime + (motion.back().stopTime - motion.back().startTime);
     setWheelsDirect(-motion.back().left, -motion.back().right);
+
+    std::cout << "[Info] Retracing movement (" << motion.back().left << ", "
+      << motion.back().right << ") for " << retraceMovementDone-curTime << "ms"
+      << std::endl;
   }
   else if(curTime >= retraceMovementDone) {
+    std::cout << "[Info] Retracing movement done" << std::endl;
+
     motion.pop_back();
     
     if(motion.empty()) {
       setWheelsDirect(0, 0);
+      std::cout << "[Error] iRobot: Retracing stack empty" << std::endl;
       return false;
     }
     else {
-      retraceMovementDone = curTime + (motion.back().stopTime - motion.back().stopTime);
+      retraceMovementDone = curTime + (motion.back().stopTime - motion.back().startTime);
       setWheelsDirect(-motion.back().left, -motion.back().right);
+      std::cout << "[Info] Retracing movement (" << motion.back().left << ", "
+        << motion.back().right << ") for " << retraceMovementDone-curTime << "ms"
+        << std::endl;
+
     }
   }
 
