@@ -7,6 +7,10 @@
 
 //ORB-SLAM2
 #include <System.h>
+#include <Map.h>
+#include <MapPoint.h>
+#include <KeyFrame.h>
+#include <pangolin/pangolin.h>
 
 //PCL
 #include <iostream>
@@ -19,12 +23,19 @@
 //#include <pcl/visualization/pcl_visualizer.h>
 
 class CloudComputer : public IConfigurable {
+
+  struct pt {
+    float x;
+    float y;
+    float z;
+  };
+
 public:
   CloudComputer(std::vector<IConfigurable::Param>&& params);
 
   void addPoint(cv::Mat& pt);
 
-  void displayCloud();
+  void displayCloud(ORB_SLAM2::Map* total_map);
 
 private:
   pcl::PointCloud<pcl::PointXYZ> cloud;

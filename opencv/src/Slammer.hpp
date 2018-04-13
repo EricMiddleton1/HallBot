@@ -22,6 +22,8 @@ public:
 
   cv::Mat getLastMapPoint();
 
+  ORB_SLAM2::Map* getMap();
+
   void saveAllMapPoints();
 
   int getStateofTrack();

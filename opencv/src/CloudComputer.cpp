@@ -1,6 +1,11 @@
 #include "CloudComputer.hpp"
 #include <cmath>
 #include <iostream>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -11,26 +16,67 @@
 
 
 CloudComputer::CloudComputer(std::vector<IConfigurable::Param>&& params)
-  : IConfigurable{ {}, std::move(params) } {
+  : IConfigurable{ {"pipe"}, std::move(params)} {
 }
 
-void CloudComputer::displayCloud(){
-  // pcl::visualization::PCLVisualizer viewer ("POINT CLOUD TEST");
-  // pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-  // pcl::io::loadPCDFile ("test_pcd.pcd", *source_cloud);
-  // // Define R,G,B colors for the point cloud
-  // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> source_cloud_color_handler (source_cloud, 255, 255, 255);
-  // // We add the point cloud to the viewer and pass the color handler
-  // viewer.addPointCloud (source_cloud, source_cloud_color_handler, "original_cloud");
-  // //pcl::io::loadPCDFile ("test_pcd.pcd", *newcloud);
-  // //pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-  // viewer.addCoordinateSystem (1.0, "cloud", 0);
-  // viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-  // viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_cloud");
-  // //  viewer.showCloud (newcloud);
-  // while (!viewer.wasStopped ())
-  //   {
-  //     viewer.spinOnce ();
+void CloudComputer::displayCloud(ORB_SLAM2::Map* total_map){
+
+
+  int fd;
+  char * myfifo = "myfifo";
+
+  /* create the FIFO (named pipe) */
+  mkfifo(myfifo, 0666);
+
+  /* write "Hi" to the FIFO */
+  fd = open(myfifo, O_WRONLY);
+  // write(fd, "Hi", sizeof("Hi"));
+  // close(fd);
   //
-  //   }
+  // /* remove the FIFO */
+  // unlink(myfifo);
+
+
+
+
+  const vector<ORB_SLAM2::MapPoint*> &map_pts = total_map->GetAllMapPoints();
+  const vector<ORB_SLAM2::MapPoint*> &ref_pts = total_map->GetReferenceMapPoints();
+
+  set<ORB_SLAM2::MapPoint*> set_ref_pts(ref_pts.begin(), ref_pts.end());
+
+  for(size_t i=0, iend=map_pts.size(); i<iend;i++)
+  {
+      if(map_pts[i]->isBad() || set_ref_pts.count(map_pts[i]))
+          continue;
+      cv::Mat pos = map_pts[i]->GetWorldPos();
+
+
+      // TODO
+      pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
+      write(fd, &new_pt, sizeof(pt));
+      // pcl_file << pos.at<float>(0) << " "
+      //        << pos.at<float>(1) << " "
+      //        << pos.at<float>(2) << "\n";
+  }
+
+  for(set<ORB_SLAM2::MapPoint*>::iterator sit=set_ref_pts.begin(), send=set_ref_pts.end(); sit!=send; sit++)
+  {
+      if((*sit)->isBad())
+          continue;
+      cv::Mat pos = (*sit)->GetWorldPos();
+
+      //TODO
+      pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
+      write(fd, &new_pt, sizeof(pt));
+      // pcl_file << pos.at<float>(0) << " "
+      //        << pos.at<float>(1) << " "
+      //        << pos.at<float>(2) << "\n";
+
+  }
+
+  close(fd);
+
+  /* remove the FIFO */
+  unlink(myfifo);
+
 }

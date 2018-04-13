@@ -2,6 +2,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <fstream>
 #include <string>
 #include <iostream>
 #include <stdexcept>
@@ -17,6 +18,7 @@
 #include "Slammer.hpp"
 #include "iRobot.hpp"
 #include "PID.hpp"
+#include "CloudComputer.hpp"
 
 const std::string WINDOW_NAME = "Vanishing Point Detector";
 const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
@@ -37,14 +39,18 @@ int main(void)
   auto videoDevice =
     device_cast<VideoDevice>(DeviceManager::build(videoName->second,
     std::move(videoParams)));
-  auto edgeDetector{std::make_unique<EdgeDetector>(config.getParams("edge_detector"))};
+  auto edgeDetector{std::make_unique<EdgeDetector>(
+    config.getParams("edge_detector"))};
   auto houghTransformer{std::make_unique<HoughTransform>(
     config.getParams("hough_transform"))};
   auto vpDetector{std::make_unique<VanishingPointDetector>(
     config.getParams("vanishing_point_detector"))};
   auto slammer{std::make_unique<Slammer>(
     config.getParams("slam"))};
-  auto steerPID{std::make_unique<PID>(config.getParams("steer_pid"))};
+  auto steerPID{std::make_unique<PID>(
+    config.getParams("steer_pid"))};
+  auto cloudComp{std::make_unique<CloudComputer>(
+    config.getParams("cloud_comp"))};
 
   std::unique_ptr<iRobot> bot;
   if(config.hasEntry("robot")) {
@@ -117,12 +123,13 @@ int main(void)
 		std::cout << "[Info] Processed frame in " << static_cast<float>(endTime - startTime)
 			/ cv::getTickFrequency()*1000.f << "ms" << std::endl;
     startTime = endTime;
-    // auto pt = slammer->getLastMapPoint();
-    // if (slammer->getStateofTrack()==2 && !pt.empty()) {
-    //   std::cout << " New Point\n" << pt << std::endl;
-    //   slammer->saveAllMapPoints();
-    // }
-    slammer->saveAllMapPoints();
+
+    // if tracking is OK
+    if (slammer->getStateofTrack() == 2) {
+      cloudComp->displayCloud(slammer->getMap());
+    }
+    //slammer->saveAllMapPoints();
+
   }
 
   return 0;

@@ -47,6 +47,10 @@ cv::Mat Slammer::getLastMapPoint(){
   }
 }
 
+ORB_SLAM2::Map* Slammer::getMap(){
+  return slam.getMap();
+}
+
 void Slammer::saveAllMapPoints(){
 
   ofstream pcl_file;
