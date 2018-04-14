@@ -39,4 +39,7 @@ public:
 
 private:
   pcl::PointCloud<pcl::PointXYZ> cloud;
+
+  char * myfifo;
+
 };

@@ -17,17 +17,20 @@
 
 CloudComputer::CloudComputer(std::vector<IConfigurable::Param>&& params)
   : IConfigurable{ {"pipe"}, std::move(params)} {
+
+
+  myfifo = "myfifo";
+
+  /* create the FIFO (named pipe) */
+  mkfifo(myfifo, 0666);
+
 }
 
 void CloudComputer::displayCloud(ORB_SLAM2::Map* total_map){
 
 
   int fd;
-  char * myfifo = "myfifo";
-
-  /* create the FIFO (named pipe) */
-  mkfifo(myfifo, 0666);
-
+  
   /* write "Hi" to the FIFO */
   fd = open(myfifo, O_WRONLY);
   // write(fd, "Hi", sizeof("Hi"));
@@ -77,6 +80,6 @@ void CloudComputer::displayCloud(ORB_SLAM2::Map* total_map){
   close(fd);
 
   /* remove the FIFO */
-  unlink(myfifo);
+  //unlink(myfifo);
 
 }

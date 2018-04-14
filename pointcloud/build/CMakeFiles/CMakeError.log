@@ -1,22 +1,22 @@
 Determining if the pthread_create exist failed with the following output:
 Change Dir: /home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_79267/fast"
-/usr/bin/make -f CMakeFiles/cmTC_79267.dir/build.make CMakeFiles/cmTC_79267.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_2193e/fast"
+/usr/bin/make -f CMakeFiles/cmTC_2193e.dir/build.make CMakeFiles/cmTC_2193e.dir/build
 make[1]: Entering directory '/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_79267.dir/CheckSymbolExists.c.o
-/usr/bin/cc     -o CMakeFiles/cmTC_79267.dir/CheckSymbolExists.c.o   -c /home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
-Linking C executable cmTC_79267
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_79267.dir/link.txt --verbose=1
-/usr/bin/cc       CMakeFiles/cmTC_79267.dir/CheckSymbolExists.c.o  -o cmTC_79267 -rdynamic 
-CMakeFiles/cmTC_79267.dir/CheckSymbolExists.c.o: In function `main':
+Building C object CMakeFiles/cmTC_2193e.dir/CheckSymbolExists.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_2193e.dir/CheckSymbolExists.c.o   -c /home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_2193e
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2193e.dir/link.txt --verbose=1
+/usr/bin/cc       CMakeFiles/cmTC_2193e.dir/CheckSymbolExists.c.o  -o cmTC_2193e -rdynamic 
+CMakeFiles/cmTC_2193e.dir/CheckSymbolExists.c.o: In function `main':
 CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_79267.dir/build.make:97: recipe for target 'cmTC_79267' failed
-make[1]: *** [cmTC_79267] Error 1
+CMakeFiles/cmTC_2193e.dir/build.make:97: recipe for target 'cmTC_2193e' failed
+make[1]: *** [cmTC_2193e] Error 1
 make[1]: Leaving directory '/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_79267/fast' failed
-make: *** [cmTC_79267/fast] Error 2
+Makefile:126: recipe for target 'cmTC_2193e/fast' failed
+make: *** [cmTC_2193e/fast] Error 2
 
 File /home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
 /* */
@@ -36,20 +36,20 @@ int main(int argc, char** argv)
 Determining if the function pthread_create exists in the pthreads failed with the following output:
 Change Dir: /home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_09260/fast"
-/usr/bin/make -f CMakeFiles/cmTC_09260.dir/build.make CMakeFiles/cmTC_09260.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_b6266/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b6266.dir/build.make CMakeFiles/cmTC_b6266.dir/build
 make[1]: Entering directory '/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_09260.dir/CheckFunctionExists.c.o
-/usr/bin/cc    -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_09260.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
-Linking C executable cmTC_09260
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_09260.dir/link.txt --verbose=1
-/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_09260.dir/CheckFunctionExists.c.o  -o cmTC_09260 -rdynamic -lpthreads 
+Building C object CMakeFiles/cmTC_b6266.dir/CheckFunctionExists.c.o
+/usr/bin/cc    -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_b6266.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
+Linking C executable cmTC_b6266
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b6266.dir/link.txt --verbose=1
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_b6266.dir/CheckFunctionExists.c.o  -o cmTC_b6266 -rdynamic -lpthreads 
 /usr/bin/ld: cannot find -lpthreads
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_09260.dir/build.make:97: recipe for target 'cmTC_09260' failed
-make[1]: *** [cmTC_09260] Error 1
+CMakeFiles/cmTC_b6266.dir/build.make:97: recipe for target 'cmTC_b6266' failed
+make[1]: *** [cmTC_b6266] Error 1
 make[1]: Leaving directory '/home/treins/Documents/575/HallBot/pointcloud/build/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_09260/fast' failed
-make: *** [cmTC_09260/fast] Error 2
+Makefile:126: recipe for target 'cmTC_b6266/fast' failed
+make: *** [cmTC_b6266/fast] Error 2
 
 
