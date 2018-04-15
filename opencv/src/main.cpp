@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <chrono>
 
 #include <yaml-cpp/yaml.h>
 
@@ -44,14 +45,16 @@ int main(void)
     config.getParams("hough_transform"))};
   auto vpDetector{std::make_unique<VanishingPointDetector>(
     config.getParams("vanishing_point_detector"))};
-  auto slammer{std::make_unique<Slammer>(
-    config.getParams("slam"))};
-  auto steerPID{std::make_unique<PID>(config.getParams("steer_pid"))};
-
+  
   std::unique_ptr<iRobot> bot;
   if(config.hasEntry("robot")) {
     bot = std::make_unique<iRobot>(config.getParams("robot"));
   }
+	
+	auto slammer{std::make_unique<Slammer>(
+    config.getParams("slam"))};
+  auto steerPID{std::make_unique<PID>(config.getParams("steer_pid"))};
+
 
   //Set PID setpoint
   steerPID->set(0.f);
@@ -107,6 +110,9 @@ int main(void)
       //std::cout << "[Info] Camera position: " << cameraPos << std::endl;
 
       bot->setCameraPose({botX, botY}, 0.f);
+
+			std::cout << "[Info] Position: (" << botX << ", " << botY << "), scale: "
+				<< bot->getCameraScale() << std::endl;
     }
     cv::Vec2f newBotPos = bot->getPosition();
     cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
@@ -149,8 +155,8 @@ int main(void)
       imshow(WINDOW_NAME, frame);
       imshow(DEBUG_WINDOW_NAME, frame_edges);
     }
-    imshow("SLAM Frame", frameAnotated);
-    imshow("Camera Track", track);
+    //imshow("SLAM Frame", frameAnotated);
+    //imshow("Camera Track", track);
 
     //Stop loop stopwatch
 		auto endTime = cv::getTickCount();

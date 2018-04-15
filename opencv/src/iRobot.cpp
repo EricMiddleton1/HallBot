@@ -92,6 +92,10 @@ float iRobot::getAngle() const {
   return angle;
 }
 
+float iRobot::getCameraScale() const {
+	return cameraScale;
+}
+
 void iRobot::setCameraPose(const cv::Vec2f& p, float a) {
   static cv::Vec2f lastCameraPos = {0.f, 0.f};
 
