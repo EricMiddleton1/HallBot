@@ -61,6 +61,13 @@ int main(void)
 
   cv::Mat track(600, 600, CV_8UC3, cv::Scalar(255, 255, 255));
   cv::Vec2f lastBotPos = {0.f, 0.f};
+
+  //Wait to start until play button pressed
+  if(bot) {
+    while(!bot->getButtonPress()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
   
   auto startTime = cv::getTickCount();
 

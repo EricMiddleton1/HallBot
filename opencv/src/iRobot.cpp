@@ -13,15 +13,22 @@ iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
     }}
   , pos{0.f, 0.f}
   , angle{0.f}
+  , distAccum{0.f}
+  , cameraScale{1.f}
+  , buttonState{false}
+  , buttonPress{false}
   , state{State::Initializing}
   , drivingSpeeds{std::stoi(getParam("initial_speed")),
       std::stoi(getParam("tracking_speed")), std::stoi(getParam("retracing_speed"))}
+  , startTime{std::chrono::steady_clock::now()}
+  , retraceMovementDone{0}
+  , sensorTimer{ioService, std::chrono::milliseconds(SENSOR_UPDATE_RATE), [this]() {
+      sensorUpdate();
+    }}
   , asyncThread{ [this](){
       ioService.run();
       std::cout << "[Error] SerialPort: Thread close" << std::endl;
-    }}
-  , startTime{std::chrono::steady_clock::now()}
-  , retraceMovementDone{0} {
+    }} {
 
   start();
 }
@@ -33,12 +40,17 @@ iRobot::~iRobot() {
 
 void iRobot::start() {
   //Start OpenInterface, set mode to full
-  //Request sensor stream (Distance, Angle)
   port.send({static_cast<uint8_t>(Command::Start),
-    static_cast<uint8_t>(Command::FullMode),
-    static_cast<uint8_t>(Command::SensorStream), 2,
-    static_cast<uint8_t>(SensorPacket::Distance),
-    static_cast<uint8_t>(SensorPacket::Angle)});
+    static_cast<uint8_t>(Command::FullMode)});
+}
+
+bool iRobot::getButtonPress() const {
+  std::lock_guard<std::mutex> lock(mutex);
+  
+  bool pressCopy = buttonPress;
+  buttonPress = false;
+
+  return pressCopy;
 }
 
 void iRobot::setWheels(float left, float right) {
@@ -195,79 +207,65 @@ bool iRobot::retraceStep() {
 }
 
 void iRobot::recvHandler(std::vector<uint8_t> data) {
-  int start = 0;
-  while(parseSensorStream(data, start)) {
-    sensorStream.clear();
+  sensorStream.insert(sensorStream.end(), data.begin(), data.end());
+  
+  Sensors sensors;
+  while(parseSensorStream(sensors)) {
+    processSensorUpdate(sensors);
   }
 }
 
-bool iRobot::parseSensorStream(const std::vector<uint8_t>& data, int& start) {
-  if(sensorStream.empty()) {
-    for(; (start < static_cast<int>(data.size())) && data[start] != SensorStreamStart;
-      ++start) {
-      std::cout << "[Warning] iRobot: Rejecting byte '" << static_cast<int>(data[start])
-        << "'" << std::endl;
-    }
-  }
-  
-  int available = data.size() - start;
-  if(available <= 0) {
-    return false;
-  }
+void iRobot::sensorUpdate() {
+  //Flush receive buffer
+  sensorStream.clear();
 
-  if(sensorStream.size() < 2) {
-    int needed = 2 - sensorStream.size();
-    if(available <= needed) {
-      sensorStream.insert(sensorStream.end(), data.begin() + start, data.end());
-      return false;
-    }
-    else {
-      sensorStream.insert(sensorStream.end(), data.begin() + start,
-        data.begin() + start + needed);
-      start += needed;
-      available -= needed;
-    }
-  }
-  
-  auto packetSize = sensorStream[1] + 3;
-  int needed = packetSize - sensorStream.size(),
-    toRead = std::min(needed, available);
-
-  sensorStream.insert(sensorStream.end(), data.begin() + start,
-    data.begin() + start + toRead);
-  start += toRead;
-
-  return toRead == needed;
+  //Request sensor packet for group 2 (values 17-20)
+  port.send({static_cast<uint8_t>(Command::Sensors), 2});
 }
 
-bool iRobot::processSensorUpdate() {
-  if(sensorStream.size() != 9) {
-    std::cerr << "[Error] Invalid sensor stream size (expected 9, actually "
-      << sensorStream.size() << ")" << std::endl;
+
+bool iRobot::parseSensorStream(Sensors& sensors) {
+  //Sensor group 2: 6 bytes
+  const int PACKET_SIZE = 6;
+  if(sensorStream.size() < PACKET_SIZE) {
     return false;
   }
+  else {
+    sensors.ir = sensorStream[0];
+    sensors.button_packed = sensorStream[1];
+    sensors.distance = parseInt16(sensorStream, 2);
+    sensors.angle = parseInt16(sensorStream, 4);
 
-  auto checksum = std::accumulate(sensorStream.begin(), sensorStream.end(),
-    static_cast<uint8_t>(0));
+    sensorStream.erase(sensorStream.begin(), sensorStream.begin() + PACKET_SIZE);
 
-  if(checksum != 0) {
-    std::cerr << "[Error] Invalid checksum value (" << checksum << ")"
-      << std::endl;
+    return true;
   }
+}
 
-  auto dist = parseInt16(sensorStream, 3) / 1000.f;
-  auto ang_change = parseInt16(sensorStream, 6);
-
+void iRobot::processSensorUpdate(const Sensors& sensors) {
   {
     std::lock_guard<std::mutex> lock(mutex);
 
-    distAccum += dist;
+    distAccum += sensors.distance;
 
-    angle += ang_change * M_PI / 180.;
-    pos[0] += dist * std::cos(angle);
-    pos[1] += dist * std::sin(angle);
+    angle += sensors.angle * M_PI / 180.;
+    pos[0] += sensors.distance * std::cos(angle);
+    pos[1] += sensors.distance * std::sin(angle);
+
+    if(sensors.button.play != buttonState) {
+      buttonState = sensors.button.play;
+      if(buttonState) {
+        buttonPress = true;
+      }
+    }
   }
-  return true;
+/*
+  std::cout << "[Info] iRobot Sensors: buttons="
+    << static_cast<int>(sensors.button_packed) << "button_advance="
+    << static_cast<int>(sensors.button.advance) << ", button_play="
+    << static_cast<int>(sensors.button.play) << ", distance="
+    << sensors.distance << ", angle=" << sensors.angle << std::endl;
+    */
 }
 
 uint32_t iRobot::getTime() const {
