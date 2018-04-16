@@ -117,7 +117,8 @@ void iRobot::setCameraPose(const cv::Vec2f& p, float a) {
     //Compute/update camera scale factor
     float cameraDist = dist(lastCameraPos, p);
     if(cameraDist != 0.f) {
-      float newCamScale = distAccum / cameraDist;
+      //Scale to convert from ORB-SLAM units to meters
+      float newCamScale = distAccum / cameraDist / 1000.f;
       float alpha = (cameraScale == 0.f) ? 1.f : 0.1f;
       cameraScale = alpha*newCamScale + (1.f-alpha)*cameraScale;
     }
