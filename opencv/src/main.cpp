@@ -17,12 +17,13 @@
 #include "VanishingPointDetector.hpp"
 #include "Slammer.hpp"
 #include "iRobot.hpp"
+#include "Driver.hpp"
 #include "PID.hpp"
 
 const std::string WINDOW_NAME = "Vanishing Point Detector";
 const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
 
-iRobot::State convertTrackingState(int trackingState);
+Driver::Mode getDrivingMode(int trackingState);
 
 int main(void)
 {
@@ -46,9 +47,12 @@ int main(void)
   auto vpDetector{std::make_unique<VanishingPointDetector>(
     config.getParams("vanishing_point_detector"))};
   
-  std::unique_ptr<iRobot> bot;
+  std::shared_ptr<iRobot> bot;
+  std::unique_ptr<Driver> driver;
   if(config.hasEntry("robot")) {
-    bot = std::make_unique<iRobot>(config.getParams("robot"));
+    bot = std::make_shared<iRobot>(config.getParams("robot"));
+    driver = std::make_unique<Driver>(config.getParams("driver"));
+    driver->setRobot(bot);
   }
 	
 	auto slammer{std::make_unique<Slammer>(
@@ -72,7 +76,7 @@ int main(void)
   auto startTime = cv::getTickCount();
 
   if(bot) {
-    bot->setWheels(1.f, 1.f);
+    driver->start();
   }
 
   while(cv::waitKey(1) == -1) {
@@ -91,19 +95,8 @@ int main(void)
     auto pose = slammer->process(frame);
     frameAnotated = slammer->draw();
 
-    auto oldState = bot->getState();
-    bot->setState(convertTrackingState(slammer->getTrackingState()));
-    auto newState = bot->getState();
-    if(newState != oldState) {
-      if(newState != iRobot::State::Retracing) {
-        bot->setWheels(1.f, 1.f);
-      }
-    }
-
-    if(newState == iRobot::State::Retracing) {
-      //std::cout << "[Info] Retracing..." << std::endl;
-      bot->retraceStep();
-    }
+    driver->mode(getDrivingMode(slammer->getTrackingState()));
+    driver->update();
     
     if(!pose.empty()) {
       auto R = pose(cv::Rect(0, 0, 3, 3));
@@ -117,9 +110,10 @@ int main(void)
       //std::cout << "[Info] Camera position: " << cameraPos << std::endl;
 
       bot->setCameraPose({botX, botY}, 0.f);
-
+/*
 			std::cout << "[Info] Position: (" << botX << ", " << botY << "), scale: "
 				<< bot->getCameraScale() << std::endl;
+*/
     }
     cv::Vec2f newBotPos = bot->getPosition();
     cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
@@ -178,22 +172,22 @@ int main(void)
 }
 
 
-iRobot::State convertTrackingState(int trackingState) {
-  iRobot::State state;
+Driver::Mode getDrivingMode(int trackingState) {
+  Driver::Mode mode;
 
   switch(trackingState) {
     case ORB_SLAM2::Tracking::OK:
-      state = iRobot::State::Tracking;
+      mode = Driver::Mode::Tracking;
     break;
 
     case ORB_SLAM2::Tracking::LOST:
-      state = iRobot::State::Retracing;
+      mode = Driver::Mode::Retracing;
     break;
 
     default:
-      state = iRobot::State::Initializing;
+      mode = Driver::Mode::Initializing;
     break;
   }
 
-  return state;
+  return mode;
 }

@@ -25,7 +25,9 @@ public:
   iRobot(std::vector<IConfigurable::Param>&& params);
   ~iRobot();
 
-  void setWheels(float left, float right);
+  void setWheels(int left, int right);
+
+  float getDistance() const;
 
   cv::Vec2f getPosition() const;
   float getAngle() const;
@@ -34,21 +36,13 @@ public:
   void setCameraAngle(float angle);
 
   float getCameraScale() const;
-
-  void setState(State);
-  State getState() const;
-
+  
   bool getButtonPress() const;
 
   bool retraceStep();
 
 private:
   const int SENSOR_UPDATE_RATE = 100; //milliseconds
-  
-  struct Movement {
-    float left, right;
-    uint32_t startTime, stopTime;
-  };
 
   enum class Command {
     Start = 128,
@@ -81,7 +75,6 @@ private:
   void sensorUpdate();
   bool parseSensorStream(Sensors& sensors);
   void processSensorUpdate(const Sensors& sensors);
-  void setWheelsDirect(int16_t left, int16_t right);
   uint32_t getTime() const;
 
   static int16_t parseInt16(const std::vector<uint8_t>& buffer, int start);
@@ -94,19 +87,14 @@ private:
 
   std::vector<uint8_t> sensorStream;
 
+  mutable float drivenDistance;
+
   cv::Vec2f pos;
   float angle;
   float distAccum, cameraScale;
 
   bool buttonState;
   mutable bool buttonPress;
-
-  State state;
-  int drivingSpeeds[3];
-  
-  std::deque<Movement> motion;
-  std::chrono::steady_clock::time_point startTime;
-  uint32_t retraceMovementDone;
 
   mutable std::mutex mutex;
 
