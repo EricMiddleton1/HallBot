@@ -4,12 +4,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <boost/unordered_map.hpp>
+#include <boost/thread/thread.hpp>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/console/parse.h>
 #include <pcl/common/transforms.h>
+#include <pcl/common/common_headers.h>
 // #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -24,7 +26,7 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> customColourVis (pcl::Point
   viewer->setBackgroundColor (0, 0, 0);
   pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, 0, 255, 0);
   viewer->addPointCloud<pcl::PointXYZ> (cloud, single_color, "sample cloud");
-  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
+  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
   viewer->addCoordinateSystem (1.0);
   viewer->initCameraParameters ();
   return (viewer);
@@ -87,7 +89,10 @@ int
       //blocks until the cloud is actually rendered
  
       if(cloud_added){
-        viewer->updatePointCloud(basic_cloud_ptr);
+        if(!viewer->updatePointCloud(basic_cloud_ptr, "sample cloud")){
+          std::cout << "Cloud UPDATE FAIL" << std::endl;
+        }
+        
         std::cout << "Cloud Updated" << std::endl;
       } else {
         viewer = customColourVis(basic_cloud_ptr);

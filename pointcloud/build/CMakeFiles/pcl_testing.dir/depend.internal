@@ -376,19 +376,29 @@ CMakeFiles/pcl_testing.dir/pcl_testing.cpp.o
  /usr/local/include/pcl-1.8/pcl/TextureMesh.h
  /usr/local/include/pcl-1.8/pcl/Vertices.h
  /usr/local/include/pcl-1.8/pcl/cloud_iterator.h
+ /usr/local/include/pcl-1.8/pcl/common/angles.h
  /usr/local/include/pcl-1.8/pcl/common/centroid.h
  /usr/local/include/pcl-1.8/pcl/common/colors.h
+ /usr/local/include/pcl-1.8/pcl/common/common.h
+ /usr/local/include/pcl-1.8/pcl/common/common_headers.h
  /usr/local/include/pcl-1.8/pcl/common/concatenate.h
  /usr/local/include/pcl-1.8/pcl/common/copy_point.h
  /usr/local/include/pcl-1.8/pcl/common/eigen.h
+ /usr/local/include/pcl-1.8/pcl/common/file_io.h
  /usr/local/include/pcl-1.8/pcl/common/impl/accumulators.hpp
+ /usr/local/include/pcl-1.8/pcl/common/impl/angles.hpp
  /usr/local/include/pcl-1.8/pcl/common/impl/centroid.hpp
+ /usr/local/include/pcl-1.8/pcl/common/impl/common.hpp
  /usr/local/include/pcl-1.8/pcl/common/impl/copy_point.hpp
  /usr/local/include/pcl-1.8/pcl/common/impl/eigen.hpp
+ /usr/local/include/pcl-1.8/pcl/common/impl/file_io.hpp
  /usr/local/include/pcl-1.8/pcl/common/impl/io.hpp
+ /usr/local/include/pcl-1.8/pcl/common/impl/norms.hpp
  /usr/local/include/pcl-1.8/pcl/common/impl/transforms.hpp
  /usr/local/include/pcl-1.8/pcl/common/io.h
+ /usr/local/include/pcl-1.8/pcl/common/norms.h
  /usr/local/include/pcl-1.8/pcl/common/point_tests.h
+ /usr/local/include/pcl-1.8/pcl/common/time.h
  /usr/local/include/pcl-1.8/pcl/common/transforms.h
  /usr/local/include/pcl-1.8/pcl/console/parse.h
  /usr/local/include/pcl-1.8/pcl/console/print.h
