@@ -126,7 +126,7 @@ int main(void)
 
     // if tracking is OK
     if (slammer->getStateofTrack() == 2) {
-      cloudComp->displayCloud(slammer->getMap());
+      cloudComp->display2D(slammer->getMap());
     }
     //slammer->saveAllMapPoints();
 

@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../../videos/calibrated/dasloop.mp4
+  file:       ../../videos/calibrated/two.mp4
   color_mode: bw
   max_height: 480
 

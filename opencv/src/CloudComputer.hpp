@@ -5,6 +5,11 @@
 #include <chrono>
 #include <fstream>
 
+//OPENCV
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+
 //ORB-SLAM2
 #include <System.h>
 #include <Map.h>
@@ -35,6 +40,10 @@ public:
 
   void addPoint(cv::Mat& pt);
 
+  void display2D(ORB_SLAM2::Map* total_map);
+
+  void getPointRanges(ORB_SLAM2::Map* total_map);
+
   void displayCloud(ORB_SLAM2::Map* total_map);
 
 private:
@@ -42,4 +51,9 @@ private:
 
   char * myfifo;
 
+  int w;
+
+  cv::Mat hallway_image;
+
+  void addCircle( cv::Mat img, cv::Point center , int color);
 };
