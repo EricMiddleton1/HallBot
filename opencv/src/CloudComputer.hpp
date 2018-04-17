@@ -4,6 +4,7 @@
 #include "IConfigurable.hpp"
 #include <chrono>
 #include <fstream>
+#include <math.h>
 
 //OPENCV
 #include <opencv2/core.hpp>
@@ -27,33 +28,44 @@
 //BROKEN
 //#include <pcl/visualization/pcl_visualizer.h>
 
-class CloudComputer : public IConfigurable {
+#define PI 3.14159265
 
-  struct pt {
+class CloudComputer : public IConfigurable
+{
+
+  struct pt
+  {
     float x;
     float y;
     float z;
   };
 
 public:
-  CloudComputer(std::vector<IConfigurable::Param>&& params);
+  CloudComputer(std::vector<IConfigurable::Param> &&params);
 
-  void addPoint(cv::Mat& pt);
+  void addPoint(cv::Mat &pt);
 
-  void display2D(ORB_SLAM2::Map* total_map);
+  void display2D(ORB_SLAM2::Map *total_map);
 
-  void getPointRanges(ORB_SLAM2::Map* total_map);
+  void getPointRanges(ORB_SLAM2::Map *total_map);
 
-  void displayCloud(ORB_SLAM2::Map* total_map);
+  void displayCloud(ORB_SLAM2::Map *total_map);
 
 private:
   pcl::PointCloud<pcl::PointXYZ> cloud;
 
-  char * myfifo;
+  char *myfifo;
 
-  int w;
+  int w, regression_type, how_recent;
 
   cv::Mat hallway_image;
 
-  void addCircle( cv::Mat img, cv::Point center , int color);
+  //Array of Points used for regression
+  vector<cv::Point> pts_vector;
+
+  bool wall_alert;
+
+  void addCircle(cv::Mat img, cv::Point center, int color);
+
+  void drawLine(cv::Mat img, cv::Vec4f line, int thickness, cv::Scalar color);
 };
