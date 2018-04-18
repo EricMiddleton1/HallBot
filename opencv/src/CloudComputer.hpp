@@ -47,6 +47,12 @@ public:
 
   void display2D(ORB_SLAM2::Map *total_map);
 
+  void getPtVector(ORB_SLAM2::Map *total_map);
+
+  void rotateWithTheta(float theta);
+
+  void autoRotate();
+
   void getPointRanges(ORB_SLAM2::Map *total_map);
 
   void displayCloud(ORB_SLAM2::Map *total_map);
@@ -58,14 +64,23 @@ private:
 
   int w, regression_type, how_recent;
 
+  float theta;
+
   cv::Mat hallway_image;
 
   //Array of Points used for regression
+  vector<cv::Point3f> pts_vector_3d;
   vector<cv::Point> pts_vector;
 
-  bool wall_alert;
+  bool wall_alert, enough_pts_already;
 
   void addCircle(cv::Mat img, cv::Point center, int color);
 
   void drawLine(cv::Mat img, cv::Vec4f line, int thickness, cv::Scalar color);
+
+  cv::Vec4f convertLine2D(cv::Vec6f a3dline);
+
+  cv::Point convertPoint2D(cv::Point3f a3dpoint);
+
+  cv::Mat euler2rot(const cv::Mat &euler);
 };
