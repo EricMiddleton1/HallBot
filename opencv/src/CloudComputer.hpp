@@ -20,11 +20,11 @@
 
 //PCL
 #include <iostream>
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/point_cloud.h>
-#include <pcl/console/parse.h>
-#include <pcl/common/transforms.h>
+// #include <pcl/io/pcd_io.h>
+// #include <pcl/io/ply_io.h>
+// #include <pcl/point_cloud.h>
+// #include <pcl/console/parse.h>
+// #include <pcl/common/transforms.h>
 //BROKEN
 //#include <pcl/visualization/pcl_visualizer.h>
 
@@ -53,13 +53,13 @@ public:
 
   cv::Mat autoRotate(cv::Mat pos);
 
+  void calcHistogram();
+
   void getPointRanges(ORB_SLAM2::Map *total_map);
 
-  void displayCloud(ORB_SLAM2::Map *total_map);
+  cv::Vec4f getGreenLine();
 
 private:
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-
   char *myfifo;
 
   int w, regression_type, how_recent, auto_adjust_angle;
@@ -74,6 +74,7 @@ private:
 
   // auto rotate 3D line
   cv::Vec6f compass_line;
+  cv::Vec4f long_term_line;
 
   bool wall_alert, enough_pts_already;
 

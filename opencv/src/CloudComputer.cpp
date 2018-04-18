@@ -1,16 +1,18 @@
 #include "CloudComputer.hpp"
 #include <cmath>
 #include <iostream>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+// #include <fcntl.h>
+// #include <sys/stat.h>
+// #include <sys/types.h>
+// #include <unistd.h>
+#include <algorithm>
+#include <numeric>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/point_cloud.h>
-#include <pcl/console/parse.h>
-#include <pcl/common/transforms.h>
+// #include <pcl/io/pcd_io.h>
+// #include <pcl/io/ply_io.h>
+// #include <pcl/point_cloud.h>
+// #include <pcl/console/parse.h>
+// #include <pcl/common/transforms.h>
 //BROKEN
 //#include <pcl/visualization/pcl_visualizer.h>
 
@@ -167,7 +169,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     //REVIEW:
 
     // older -- n^2
-    cv::Vec4f long_term_line;
+    // cv::Vec4f long_term_line;  // NOW PRIVATE VAR
     vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
     cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
     drawLine(hallway_image, long_term_line, 1, cv::Scalar(0, 255, 0));
@@ -224,57 +226,92 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 
   //std::cout << "[LINE VECTOR]: " << myLine << std::endl;
 
+  //calcHistogram();
+
   // Display
   imshow(hallway_window, hallway_image);
   //cv::moveWindow( hallway_window, 0, 200 );
 }
 
-void CloudComputer::getPtVector(ORB_SLAM2::Map *total_map)
+void CloudComputer::calcHistogram()
 {
-
-  // const vector<ORB_SLAM2::MapPoint *> &map_pts = total_map->GetAllMapPoints();
-  // const vector<ORB_SLAM2::MapPoint *> &ref_pts = total_map->GetReferenceMapPoints();
-  // set<ORB_SLAM2::MapPoint *> set_ref_pts(ref_pts.begin(), ref_pts.end());
-
-  // for (size_t i = 0, iend = map_pts.size(); i < iend; i++)
+  // number of bins k
+  int k = w / 10;
+  // int k = 10;
+  // init hist
+  vector<int> buckets(k);
+  // histogram of X axis
+  // find max and min values
+  int min = pts_vector.at(0).x;
+  int max = pts_vector.at(0).x;
+  for (int i = 0; i < pts_vector.size(); i++)
+  {
+    if (pts_vector.at(i).x < min)
+    {
+      min = pts_vector.at(i).x;
+    }
+    if (pts_vector.at(i).x > max)
+    {
+      max = pts_vector.at(i).x;
+    }
+  }
+  int range = max - min;
+  int b_width = range / k;
+  // start and end of current bucket being populated
+  int start, end;
+  for (int j = 0; j < buckets.size(); j++)
+  {
+    start = min + (b_width * j);
+    end = start + b_width;
+    buckets[j] = std::count_if(pts_vector.begin(), pts_vector.end(), [start, end](const auto &cur_pt) {
+      if (cur_pt.x >= start && cur_pt.x < end)
+      {
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    });
+  }
+  // for (int m = 0; m < buckets.size(); m++)
   // {
-  //   if (map_pts[i]->isBad() || set_ref_pts.count(map_pts[i]))
-  //     continue;
-  //   cv::Mat pos = map_pts[i]->GetWorldPos();
-  //   pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
-  //   // make 3D point
-  //   if (!enough_pts_already)
-  //   {
-  //     cv::Point3f p = cv::Point3f(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-  //                                 static_cast<int>(w / 2 + floor(new_pt.y * 20)),
-  //                                 static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-  //     pts_vector.push_back(p);
-  //   }
-  //   cv::Point p_2d = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-  //                              static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-  //   pts_vector_2d.push_back(p_2d);
-  //   addCircle(hallway_image, p_2d, 0);
+  //   std::cout << "[" << m << "]:" << buckets.at(m) << " ";
   // }
+  // std::cout << endl;
 
-  // for (set<ORB_SLAM2::MapPoint *>::iterator sit = set_ref_pts.begin(), send = set_ref_pts.end(); sit != send; sit++)
+  vector<int> diffs(k);
+  std::adjacent_difference(buckets.begin(), buckets.end(), diffs.begin());
+  int max_diff = std::max_element(diffs.begin(), diffs.end()) - diffs.begin();
+  int left_hall = min + (b_width * (max_diff));
+  int min_diff = std::min_element(diffs.begin(), diffs.end()) - diffs.begin();
+  int right_hall = min + (b_width * (min_diff));
+  // for (int i = 0; i < diffs.size(); i++)
   // {
-  //   if ((*sit)->isBad())
-  //     continue;
-  //   cv::Mat pos = (*sit)->GetWorldPos();
-  //   pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
-  //   // make 3D point
-  //   if (!enough_pts_already)
-  //   {
-  //     cv::Point3f p = cv::Point3f(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-  //                                 static_cast<int>(w / 2 + floor(new_pt.y * 20)),
-  //                                 static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-  //     pts_vector.push_back(p);
-  //   }
-  //   cv::Point p_2d = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-  //                              static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-  //   pts_vector_2d.push_back(p_2d);
-  //   addCircle(hallway_image, p_2d, 0);
+  //   std::cout << diffs[i] << std::endl;
   // }
+  // std::cout << "Left: " << left_hall << " Right: " << right_hall << " max diff: " << max_diff << " min diff: " << min_diff << std::endl;
+
+  // print lines for hall boundaries
+  cv::Point startPoint;
+  startPoint.x = left_hall; // x0
+  startPoint.y = 1;         // y0
+  cv::Point endPoint;
+  endPoint.x = left_hall; // x0
+  endPoint.y = w - 5;     // y0
+  // cv::clipLine(cv::Size(w, w), startPoint, endPoint);
+  cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
+  startPoint.x = right_hall; // x0
+  startPoint.y = 1;          // y0
+  endPoint.x = right_hall;   // x0
+  endPoint.y = w - 5;        // y0
+  // cv::clipLine(cv::Size(w, w), startPoint, endPoint);
+  cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
+}
+
+cv::Vec4f CloudComputer::getGreenLine()
+{
+  return long_term_line;
 }
 
 cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
@@ -390,98 +427,4 @@ void CloudComputer::getPointRanges(ORB_SLAM2::Map *total_map)
             << std::endl;
   std::cout << "max pt" << max_pt_vals.x << ", " << max_pt_vals.y << ", " << max_pt_vals.z << "\n"
             << std::endl;
-}
-
-void CloudComputer::displayCloud(ORB_SLAM2::Map *total_map)
-{
-
-  int fd;
-
-  /* write "Hi" to the FIFO */
-  fd = open(myfifo, O_WRONLY);
-  // write(fd, "Hi", sizeof("Hi"));
-  // close(fd);
-  //
-  // /* remove the FIFO */
-  // unlink(myfifo);
-
-  const vector<ORB_SLAM2::MapPoint *> &map_pts = total_map->GetAllMapPoints();
-  const vector<ORB_SLAM2::MapPoint *> &ref_pts = total_map->GetReferenceMapPoints();
-
-  set<ORB_SLAM2::MapPoint *> set_ref_pts(ref_pts.begin(), ref_pts.end());
-
-  for (size_t i = 0, iend = map_pts.size(); i < iend; i++)
-  {
-    if (map_pts[i]->isBad() || set_ref_pts.count(map_pts[i]))
-      continue;
-    cv::Mat pos = map_pts[i]->GetWorldPos();
-
-    // TODO
-    pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
-    write(fd, &new_pt, sizeof(pt));
-    // pcl_file << pos.at<float>(0) << " "
-    //        << pos.at<float>(1) << " "
-    //        << pos.at<float>(2) << "\n";
-  }
-
-  for (set<ORB_SLAM2::MapPoint *>::iterator sit = set_ref_pts.begin(), send = set_ref_pts.end(); sit != send; sit++)
-  {
-    if ((*sit)->isBad())
-      continue;
-    cv::Mat pos = (*sit)->GetWorldPos();
-
-    //TODO
-    pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
-    write(fd, &new_pt, sizeof(pt));
-    // pcl_file << pos.at<float>(0) << " "
-    //        << pos.at<float>(1) << " "
-    //        << pos.at<float>(2) << "\n";
-  }
-
-  close(fd);
-
-  /* remove the FIFO */
-  //unlink(myfifo);
-}
-
-// Converts a given Euler angles to Rotation Matrix
-cv::Mat CloudComputer::euler2rot(const cv::Mat &euler)
-{
-  cv::Mat rotationMatrix(3, 3, CV_64F);
-
-  double x = euler.at<double>(0);
-  double y = euler.at<double>(1);
-  double z = euler.at<double>(2);
-
-  // Assuming the angles are in radians.
-  double ch = cos(z);
-  double sh = sin(z);
-  double ca = cos(y);
-  double sa = sin(y);
-  double cb = cos(x);
-  double sb = sin(x);
-
-  double m00, m01, m02, m10, m11, m12, m20, m21, m22;
-
-  m00 = ch * ca;
-  m01 = sh * sb - ch * sa * cb;
-  m02 = ch * sa * sb + sh * cb;
-  m10 = sa;
-  m11 = ca * cb;
-  m12 = -ca * sb;
-  m20 = -sh * ca;
-  m21 = sh * sa * cb + ch * sb;
-  m22 = -sh * sa * sb + ch * cb;
-
-  rotationMatrix.at<double>(0, 0) = m00;
-  rotationMatrix.at<double>(0, 1) = m01;
-  rotationMatrix.at<double>(0, 2) = m02;
-  rotationMatrix.at<double>(1, 0) = m10;
-  rotationMatrix.at<double>(1, 1) = m11;
-  rotationMatrix.at<double>(1, 2) = m12;
-  rotationMatrix.at<double>(2, 0) = m20;
-  rotationMatrix.at<double>(2, 1) = m21;
-  rotationMatrix.at<double>(2, 2) = m22;
-
-  return rotationMatrix;
 }

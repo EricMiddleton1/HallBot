@@ -135,6 +135,7 @@ int main(void)
     if (slammer->getStateofTrack() == 2)
     {
       cloudComp->display2D(slammer->getMap());
+      // cloudComp->calcHistogram();
     }
     //slammer->saveAllMapPoints();
   }
