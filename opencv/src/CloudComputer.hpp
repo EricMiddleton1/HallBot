@@ -49,9 +49,9 @@ public:
 
   void getPtVector(ORB_SLAM2::Map *total_map);
 
-  void rotateWithTheta(float theta);
+  cv::Mat rotateWithTheta(cv::Mat pos);
 
-  void autoRotate();
+  cv::Mat autoRotate(cv::Mat pos);
 
   void getPointRanges(ORB_SLAM2::Map *total_map);
 
@@ -62,15 +62,18 @@ private:
 
   char *myfifo;
 
-  int w, regression_type, how_recent;
+  int w, regression_type, how_recent, auto_adjust_angle;
 
-  float theta;
+  float theta, auto_theta;
 
   cv::Mat hallway_image;
 
   //Array of Points used for regression
   vector<cv::Point3f> pts_vector_3d;
   vector<cv::Point> pts_vector;
+
+  // auto rotate 3D line
+  cv::Vec6f compass_line;
 
   bool wall_alert, enough_pts_already;
 

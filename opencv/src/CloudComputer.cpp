@@ -15,7 +15,7 @@
 //#include <pcl/visualization/pcl_visualizer.h>
 
 CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
-    : IConfigurable{{"regression_type"}, std::move(params)}, regression_type{std::stof(getParam("regression_type"))}, how_recent{std::stof(getParam("how_recent"))}, theta{std::stof(getParam("theta"))}
+    : IConfigurable{{"regression_type"}, std::move(params)}, regression_type{std::stof(getParam("regression_type"))}, how_recent{std::stof(getParam("how_recent"))}, theta{std::stof(getParam("theta"))}, auto_adjust_angle{std::stof(getParam("auto_adjust_angle"))}
 {
 
   //       OLD PCL
@@ -80,6 +80,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 {
 
   char hallway_window[] = "Hallway Projection";
+  // set background to white if short term and long term angle is above a certain threshhold
   if (wall_alert)
   {
     hallway_image = cv::Mat::ones(w, w, CV_8UC3);
@@ -92,14 +93,22 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 
   const vector<ORB_SLAM2::MapPoint *> &map_pts = total_map->GetAllMapPoints();
   const vector<ORB_SLAM2::MapPoint *> &ref_pts = total_map->GetReferenceMapPoints();
-
   set<ORB_SLAM2::MapPoint *> set_ref_pts(ref_pts.begin(), ref_pts.end());
 
   for (size_t i = 0, iend = map_pts.size(); i < iend; i++)
   {
     if (map_pts[i]->isBad() || set_ref_pts.count(map_pts[i]))
       continue;
-    cv::Mat pos = map_pts[i]->GetWorldPos();
+    cv::Mat pos;
+    if (auto_adjust_angle)
+    {
+      pos = autoRotate(map_pts[i]->GetWorldPos());
+    }
+    else
+    {
+      pos = rotateWithTheta(map_pts[i]->GetWorldPos());
+    }
+
     pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
     //use only x and z
     cv::Point p = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
@@ -114,14 +123,21 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     }
     pts_vector.push_back(p);
     addCircle(hallway_image, p, 0);
-    //   hallway_image.at<uchar>(static_cast<int>(w/2+floor(new_pt.x*25)),static_cast<int>(w/2+floor(new_pt.z*25))) = 1;
   }
 
   for (set<ORB_SLAM2::MapPoint *>::iterator sit = set_ref_pts.begin(), send = set_ref_pts.end(); sit != send; sit++)
   {
     if ((*sit)->isBad())
       continue;
-    cv::Mat pos = (*sit)->GetWorldPos();
+    cv::Mat pos;
+    if (auto_adjust_angle)
+    {
+      pos = autoRotate((*sit)->GetWorldPos());
+    }
+    else
+    {
+      pos = rotateWithTheta((*sit)->GetWorldPos());
+    }
     pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
     //use only x and z
     cv::Point p = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
@@ -136,12 +152,20 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     }
     pts_vector.push_back(p);
     addCircle(hallway_image, p, 0);
-    //   hallway_image.at<uchar>(static_cast<int>(w+floor(new_pt.x*25)),static_cast<int>(w+floor(new_pt.z*25))) = 1;
   }
 
   // long term memory
   if (pts_vector.size() > (how_recent * how_recent))
   {
+
+    //REVIEW:
+    if (!enough_pts_already)
+    {
+      enough_pts_already = true;
+    }
+    //std::cout << "[COMPASS]: " << compass_line << endl;
+    //REVIEW:
+
     // older -- n^2
     cv::Vec4f long_term_line;
     vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
@@ -155,12 +179,20 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     // TODO
     // theta between lines
     float top = (long_term_line[0] * short_term_line[0]) + (long_term_line[1] * short_term_line[1]);
-    float bottom = sqrt(pow(long_term_line[0], 2) + pow(long_term_line[1], 2)) *
-                   sqrt(pow(short_term_line[0], 2) + pow(short_term_line[1], 2));
-    float theta = cos(top);
-    if (theta > 0.75)
+    // normalize denominator, might not be needed
+    // float bottom = sqrt(pow(long_term_line[0], 2) + pow(long_term_line[1], 2)) *
+    //                sqrt(pow(short_term_line[0], 2) + pow(short_term_line[1], 2));
+    float dir_theta = acos(top) * 180 / PI;
+    if (dir_theta > 90)
     {
-      std::cout << "[THETA]: " << theta << std::endl;
+      dir_theta = 180 - dir_theta;
+    }
+    //FIXME:
+    // std::cout << "[THETA]: " << dir_theta << std::endl;
+
+    if (dir_theta > 55)
+    {
+      // std::cout << "[THETA]: " << dir_theta << std::endl;
       wall_alert = true;
     }
     else
@@ -182,7 +214,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   {
     cv::Vec4f total_line;
     cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, total_line, 1, cv::Scalar(255, 0, 0));
+    drawLine(hallway_image, total_line, 1, cv::Scalar(255, 255, 255));
   }
 
   // cv::line(hallway_image, cv::Point(myLine[2] - myLine[0] * 15, myLine[3] - myLine[1] * 15),
@@ -245,14 +277,62 @@ void CloudComputer::getPtVector(ORB_SLAM2::Map *total_map)
   // }
 }
 
-void CloudComputer::rotateWithTheta(float theta)
+cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
 {
+  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << 1, 0, 0,
+                        0, cos(theta), -sin(theta),
+                        0, sin(theta), cos(theta));
+  return rot_matrix * pos;
 }
 
-void CloudComputer::autoRotate()
+cv::Mat CloudComputer::autoRotate(cv::Mat pos)
 {
-  // cv::Vec6f total_line; // 3D line
-  // cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
+  // if not enough pts yet, do nothing
+  if (!enough_pts_already)
+  {
+    return pos;
+  }
+
+  // if enough pts found, check if line has been calculated
+  // if line not calculated, do that and update old pts...
+  if (!compass_line[0])
+  {
+    // regresion line on 3d pts found before enough_pts_already flag thrown
+    cv::fitLine(pts_vector_3d, compass_line, regression_type, 0, 0.01, 0.01);
+    // create vector on X Z plane
+    cv::Mat xz_vector = (cv::Mat_<float>(1, 3) << compass_line[0], 0, compass_line[2]);
+    // theta between lines
+    auto_theta = acos(((xz_vector.at<float>(0) * compass_line[0]) + (xz_vector.at<float>(1) * compass_line[1]) + (xz_vector.at<float>(2) * compass_line[2])) / (sqrt(pow(compass_line[0], 2) + pow(compass_line[1], 2) + pow(compass_line[2], 2)) * sqrt(pow(xz_vector.at<float>(0), 2) + pow(xz_vector.at<float>(1), 2) + pow(xz_vector.at<float>(2), 2))));
+    cv::Mat rot_matrix_init = (cv::Mat_<float>(3, 3) << 1, 0, 0,
+                               0, cos(auto_theta), -sin(auto_theta),
+                               0, sin(auto_theta), cos(auto_theta));
+    pts_vector.clear();
+    std::cout << "[BEGIN UPDATE OF OLD PTS]" << std::endl;
+    std::cout << (auto_theta * 180 / PI) << std::endl;
+
+    for (int i = 0; i < pts_vector_3d.size(); i++)
+    {
+      cv::Mat pt_i = (cv::Mat_<float>(3, 1) << pts_vector_3d.at(i).x, pts_vector_3d.at(i).y, pts_vector_3d.at(i).z);
+      // std::cout << pt_i << std::endl;
+      pt_i = rot_matrix_init * pt_i;
+      // std::cout << "[a Matrix multiplied successfully]" << std::endl;
+
+      pts_vector_3d.at(i).x = static_cast<int>(pt_i.at<float>(0));
+      pts_vector_3d.at(i).y = static_cast<int>(pt_i.at<float>(1));
+      pts_vector_3d.at(i).z = static_cast<int>(pt_i.at<float>(2));
+
+      // update 2d point vector
+      cv::Point p = cv::Point(static_cast<int>(pts_vector_3d.at(i).x),
+                              static_cast<int>(pts_vector_3d.at(i).z));
+      pts_vector.push_back(p);
+    }
+    std::cout << "[FINISHED UPDATE OF OLD PTS]" << std::endl;
+  }
+  //return current point after rotation made
+  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << 1, 0, 0,
+                        0, cos(auto_theta), -sin(auto_theta),
+                        0, sin(auto_theta), cos(auto_theta));
+  return rot_matrix * pos;
 }
 
 void CloudComputer::getPointRanges(ORB_SLAM2::Map *total_map)
