@@ -95,8 +95,10 @@ int main(void)
     auto pose = slammer->process(frame);
     frameAnotated = slammer->draw();
 
-    driver->mode(getDrivingMode(slammer->getTrackingState()));
-    driver->update();
+    if(driver) {
+      driver->mode(getDrivingMode(slammer->getTrackingState()));
+      driver->update();
+    }
     
     if(!pose.empty()) {
       auto R = pose(cv::Rect(0, 0, 3, 3));
@@ -109,47 +111,37 @@ int main(void)
       //std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
       //std::cout << "[Info] Camera position: " << cameraPos << std::endl;
 
-      bot->setCameraPose({botX, botY}, 0.f);
+      if(bot) {
+        bot->setCameraPose({botX, botY}, 0.f);
+      }
 /*
 			std::cout << "[Info] Position: (" << botX << ", " << botY << "), scale: "
 				<< bot->getCameraScale() << std::endl;
 */
     }
-    cv::Vec2f newBotPos = bot->getPosition();
-    cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
-    cv::Vec2f trackP2 = newBotPos * 300.f/4.f;
-    cv::line(track, {300+trackP1[0], 300+trackP1[1]},
-      {300+trackP2[0], 300+trackP2[1]}, cv::Scalar(255, 0, 0), 5);
-    lastBotPos = newBotPos;
-
-/*
-    //Run through vanishing point pipeline
-    if(vpDetector->enabled()) {
-      frame_edges = edgeDetector->process(frame);
-      auto lines = houghTransformer->process(frame_edges);
-      cv::Vec2f vanishingPoint;
-      auto vpConfidence = vpDetector->process(lines, vanishingPoint);
-      
-      //Draw hough lines over frame_edges image
-      houghTransformer->drawLines(lines, frame_edges);
     
-      //Update steer PID if vanishing point confidence > 0 (it detected a vanishing point)
-      if(vpConfidence > 0.f) {
-        auto curX = vanishingPoint[0] / frameSize.width;
-        hallwayX = 0.1f*curX + 0.9f*hallwayX;
-        steer = steerPID->update(hallwayX, 0.015);
-        steer = std::max(-100.f, std::min(100.f, steer));
-
-        circle(frame, {cvRound(hallwayX*frameSize.width), cvRound(vanishingPoint[1])}, 15,
-          cv::Scalar(0, 0, 255), -1);
-        circle(frame, {cvRound(vanishingPoint[0]), cvRound(vanishingPoint[1])}, 15,
-          cv::Scalar(255, 0, 0), -1);
-
-        std::cout << "[Info] Hallway X = " << hallwayX << ", wheel actuation = "
-          << steer << std::endl;
-      }
+    if(bot) {
+      cv::Vec2f newBotPos = bot->getPosition();
+      cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
+      cv::Vec2f trackP2 = newBotPos * 300.f/4.f;
+      cv::line(track, {300+trackP1[0], 300+trackP1[1]},
+        {300+trackP2[0], 300+trackP2[1]}, cv::Scalar(255, 0, 0), 5);
+      lastBotPos = newBotPos;
     }
-*/
+    
+    if(bot) {
+      //TODO: From CloudComputer
+      float hallwayAngle = 0;
+      float posInHallway = 0;
+      float hallwayWidth = 0;
+
+      hallwayWidth *= bot->getCameraScale();
+      posInHallway *= bot->getCameraScale();
+
+      driver->hallwayWidth(hallwayWidth);
+      driver->posInHallway(posInHallway);
+      driver->hallwayAngle(hallwayAngle);
+    }
 
     //Display raw rame and edges/hough lines frame
     if(vpDetector->enabled()) {

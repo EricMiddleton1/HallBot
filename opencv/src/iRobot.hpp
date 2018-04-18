@@ -16,12 +16,6 @@
 
 class iRobot : public IConfigurable {
 public:
-  enum class State {
-    Initializing = 0,
-    Tracking,
-    Retracing
-  };
-
   iRobot(std::vector<IConfigurable::Param>&& params);
   ~iRobot();
 

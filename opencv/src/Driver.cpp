@@ -4,15 +4,23 @@
 #include <iostream>
 
 Driver::Driver(std::vector<IConfigurable::Param>&& params)
-  : IConfigurable{ {"init_speed", "tracking_speed", "retracing_speed"},
+  : IConfigurable{ {"init_speed", "tracking_speed", "retracing_speed", "turn_intensity",
+      "wall_turn_distance", "zigzag_angle"},
       std::move(params) }
   , m_mode{Mode::Initializing}
   , m_running{false}
-  , m_pos{{0.f, 0.f}}
-  , m_angle{0.f}
+  , m_hallwayWidth{0.f}
+  , m_hallwayPos{0.f}
+  , m_hallwayAngle{0.f}
+  , m_moveState{MoveState::Forward}
+  , m_desiredAngle{0.f}
+  , m_turnDir{0}
   , m_speedInit{std::stoi(getParam("init_speed"))}
   , m_speedTracking{std::stoi(getParam("tracking_speed"))}
   , m_speedRetracing{std::stoi(getParam("retracing_speed"))}
+  , m_turnIntensity{std::stof(getParam("turn_intensity"))}
+  , m_zigzag_angle{std::stof(getParam("zigzag_angle"))*3.141592654f/180.f}
+  , m_wallTurnDistance{std::stof(getParam("wall_turn_distance"))}
   , m_movementDistance{0.f} {
 }
 
@@ -51,9 +59,28 @@ void Driver::mode(Mode m) {
   }
 }
 
-void Driver::pose(const cv::Vec2f& pos, float angle) {
-  m_pos = pos;
-  m_angle = angle;
+float Driver::hallwayWidth() const {
+  return m_hallwayWidth;
+}
+
+void Driver::hallwayWidth(float width) {
+  m_hallwayWidth = width;
+}
+
+float Driver::posInHallway() const {
+  return m_hallwayPos;
+}
+
+void Driver::posInHallway(float pos) {
+  m_hallwayPos = pos;
+}
+
+float Driver::hallwayAngle() const {
+  return m_hallwayAngle;
+}
+
+void Driver::hallwayAngle(float angle) {
+  m_hallwayAngle = angle;
 }
 
 void Driver::update() {
@@ -72,9 +99,34 @@ void Driver::update() {
         startRetrace();
       }
     }
-    else {
-      std::cout << "[Info] Driver: Accumulated distance " << m_movementDistance
-        << std::endl;
+    else if(m_mode == Mode::Tracking) {
+      if(m_moveState == MoveState::Turn) {
+        auto curAngle = m_bot->getAngle();
+        if((m_turnDir > 0 && curAngle >= m_desiredAngle) ||
+            (m_turnDir <= 0 && curAngle <= m_desiredAngle)) {
+          stopTurn();
+        }
+        else if(m_hallwayWidth != 0.f) {
+          auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
+          auto distFromLeft = m_hallwayPos,
+            distFromRight = m_hallwayWidth - m_hallwayPos;
+
+          if(angleInHallway > 0 && distFromLeft <= m_wallTurnDistance) {
+            //Getting too close to left wall, turn right
+            startTurn(-m_zigzag_angle);
+
+            std::cout << "[Info] Driver: Too close to left wall, turning right"
+              << std::endl;
+          }
+          else if(angleInHallway <= 0 && distFromRight <= m_wallTurnDistance) {
+            //Getting too close to right wall, turn left
+            startTurn(m_zigzag_angle);
+
+            std::cout << "[Info] Driver: Too close to right wall, turning left"
+              << std::endl;
+          }
+        }
+      }
     }
   }
 }
@@ -113,6 +165,26 @@ void Driver::startMode() {
       startRetrace();
     break;
   }
+}
+
+void Driver::startTurn(float angle) {
+  m_moveState = MoveState::Turn;
+  m_desiredAngle = m_hallwayAngle + angle;
+  
+  auto delta = m_desiredAngle - m_bot->getAngle();
+  m_turnDir = (delta > 0) ? 1 : -1;
+
+  std::cout << "[Info] Driver: Starting turn from angle " << 180.f*m_bot->getAngle()/3.14f
+    << " to " << 180.f*m_desiredAngle/3.14f << std::endl;
+
+  setMotion(1.f - m_turnDir*m_turnIntensity, 1.f + m_turnDir*m_turnIntensity);
+}
+
+void Driver::stopTurn() {
+  std::cout << "[Info] Driver: Stopping turn" << std::endl;
+
+  setMotion(1.f, 1.f);
+  m_moveState = MoveState::Forward;
 }
 
 bool Driver::startRetrace() {

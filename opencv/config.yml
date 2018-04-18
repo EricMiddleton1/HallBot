@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../videos/co3050_rotate.mp4
+  file:       ../videos/co3050_loop.mp4
   color_mode: bw
   max_height: 480
 
@@ -37,8 +37,13 @@ steer_pid:
 #log:
 #  name:                 test01
 
-robot:
-  port:                  /dev/ttyUSB0
-  initial_speed:         50
+#robot:
+  #port:                  /dev/ttyUSB0
+
+driver:
+  init_speed:            50
   tracking_speed:        150
   retracing_speed:       50
+  turn_intensity:        50
+  wall_turn_distance:    0.5
+  zigzag_angle:          45
