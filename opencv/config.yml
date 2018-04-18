@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../videos/coover_floor3_1.mp4
+  file:       ../../videos/calibrated/one.mp4
   color_mode: bw
   max_height: 480
 
@@ -42,7 +42,7 @@ steer_pid:
 
 cloud_comp:
   regression_type: 2
-  how_recent: 200
+  how_recent: 150
   theta: 0
   auto_adjust_angle: 1
 

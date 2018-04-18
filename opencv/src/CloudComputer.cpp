@@ -210,13 +210,13 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     cv::Vec4f short_term_line;
     vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
     cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, short_term_line, 1, cv::Scalar(255, 0, 0));
+    drawLine(hallway_image, short_term_line, 1, cv::Scalar(0, 255, 0));
   }
   else
   {
     cv::Vec4f total_line;
     cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, total_line, 1, cv::Scalar(255, 255, 255));
+    drawLine(hallway_image, total_line, 1, cv::Scalar(0, 255, 0));
   }
 
   // cv::line(hallway_image, cv::Point(myLine[2] - myLine[0] * 15, myLine[3] - myLine[1] * 15),
@@ -311,7 +311,12 @@ void CloudComputer::calcHistogram()
 
 cv::Vec4f CloudComputer::getGreenLine()
 {
-  return long_term_line;
+  // w / 2 + floor(new_pt.x * 20)
+  cv::Vec4f unadjusted_line = long_term_line;
+  unadjusted_line[3] = (unadjusted_line[3] - w / 2) / 20;
+  unadjusted_line[4] = (unadjusted_line[4] - w / 2) / 20;
+
+  return unadjusted_line;
 }
 
 cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
