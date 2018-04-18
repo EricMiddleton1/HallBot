@@ -18,7 +18,7 @@ class Slammer : public IConfigurable {
 public:
   Slammer(std::vector<IConfigurable::Param>&& params);
 
-  void process(const cv::Mat& input);
+  cv::Mat process(const cv::Mat& input);
 
   cv::Mat getLastMapPoint();
 
@@ -29,6 +29,8 @@ public:
   int getStateofTrack();
 
   cv::Mat draw();
+
+  int getTrackingState();
 
 private:
   ORB_SLAM2::System slam;

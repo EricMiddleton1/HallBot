@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../../videos/calibrated/two.mp4
+  file:       ../videos/coover_floor3_1.mp4
   color_mode: bw
   max_height: 480
 
@@ -27,7 +27,7 @@ vanishing_point_detector:
   iterations:           100
 
 steer_pid:
-  kp: 200
+  kp: 1
   ki: 0
   kd: 0
 
@@ -46,4 +46,10 @@ cloud_comp:
   theta: 0
   auto_adjust_angle: 1
 
-
+driver:
+  init_speed:            50
+  tracking_speed:        150
+  retracing_speed:       50
+  turn_intensity:        50
+  wall_turn_distance:    0.5
+  zigzag_angle:          45

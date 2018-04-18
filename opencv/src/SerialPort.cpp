@@ -22,6 +22,10 @@ SerialPort::SerialPort(boost::asio::io_service& _ioService,
 	}
 }
 
+bool SerialPort::connected() const {
+  return comPort.is_open();
+}
+
 void SerialPort::configureComPort(const std::string& port, int baud) {
 	comPort.open(port);
 
@@ -47,7 +51,7 @@ void SerialPort::cbSend(const boost::system::error_code& error,
 	size_t bytesTransferred [[gnu::unused]]) {
 	
 	if(error) {
-		std::cout << "[Error] SerialPort::cbSend: " << error.message() << std::endl;
+		//std::cout << "[Error] SerialPort::cbSend: " << error.message() << std::endl;
 	}
 	
 	txList.pop_front();

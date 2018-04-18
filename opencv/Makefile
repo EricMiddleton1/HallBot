@@ -20,7 +20,7 @@ DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
 INCLUDES = -I $(SRC_PATH) -IGRANSAC/include -IORB_SLAM2 -IORB_SLAM2/include -I/usr/local/include/eigen3 `pkg-config --cflags opencv pcl_common-1.8` -I/usr/local/include/vtk-8.1
 # General linker settings
-LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system -lyaml-cpp -LORB_SLAM2/lib -lORB_SLAM2 -lpangolin -lGL `pkg-config --libs pcl_common-1.8` -L/usr/local/lib -lvtkCommonCore-8.1 -lpcl_common -lpcl_visualization -lvtkRenderingCore-6.2 -lvtkCommonDataModel-6.2 -lvtkCommonMath-6.2 -lpcl_io -lvtksys-8.1
+LINK_FLAGS = `pkg-config --libs opencv` -fopenmp -lboost_system -lyaml-cpp -LORB_SLAM2/lib -lORB_SLAM2 -lpangolin -lGL
 PI_LINK_FLAGS = -lraspicam -lraspicam_cv
 # Additional release-specific linker settings
 RLINK_FLAGS =
