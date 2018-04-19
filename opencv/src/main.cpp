@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <thread>
 #include <chrono>
+#include <cmath>
 
 #include <yaml-cpp/yaml.h>
 
@@ -26,6 +27,8 @@ const std::string WINDOW_NAME = "Vanishing Point Detector";
 const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
 
 Driver::Mode getDrivingMode(int trackingState);
+
+float distanceToLine(const cv::Vec4f& line, const cv::Vec2f point);
 
 int main(void)
 {
@@ -121,12 +124,12 @@ int main(void)
       if(bot) {
         bot->setCameraPose({botX, botY}, 0.f);
       }
-/*
+
 			std::cout << "[Info] Position: (" << botX << ", " << botY << "), scale: "
 				<< bot->getCameraScale() << std::endl;
-*/
+
     }
-    
+   /* 
     if(bot) {
       cv::Vec2f newBotPos = bot->getPosition();
       cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
@@ -135,19 +138,45 @@ int main(void)
         {300+trackP2[0], 300+trackP2[1]}, cv::Scalar(255, 0, 0), 5);
       lastBotPos = newBotPos;
     }
+    */
     
     if(bot) {
-      //TODO: From CloudComputer
-      float hallwayAngle = 0;
-      float posInHallway = 0;
-      float hallwayWidth = 0;
+      auto botPos = bot->getPosition();
+      auto hallwayLine = cloudComp->getGreenLine();
 
-      hallwayWidth *= bot->getCameraScale();
-      posInHallway *= bot->getCameraScale();
+      if(hallwayLine[0] != 0.f) {
+//        botPos[1] *= -1.f;
+//        hallwayLine[1] *= -1.f;
+        float hallwayAngle = std::atan2(hallwayLine[1], hallwayLine[0]);
+        float hallwayWidth = 1.5f;
+        
+        float posInHallway = distanceToLine(hallwayLine, botPos);
+        float botRayAngle = std::atan2(botPos[1], botPos[0]);
+        posInHallway *= (botRayAngle < hallwayAngle) ? 1.f : -1.f;
 
-      driver->hallwayWidth(hallwayWidth);
-      driver->posInHallway(posInHallway);
-      driver->hallwayAngle(hallwayAngle);
+        posInHallway *= bot->getCameraScale();
+
+        driver->hallwayWidth(hallwayWidth);
+        driver->posInHallway(posInHallway);
+        driver->hallwayAngle(hallwayAngle);
+
+        std::cout << "[Info] Bot Hallway Pos: " << posInHallway << std::endl;
+
+        track.setTo(cv::Scalar(0, 0, 0));
+        
+        cv::Vec2f lineDir{hallwayLine[0], hallwayLine[1]},
+          linePt{hallwayLine[2], hallwayLine[3]};
+        cv::Vec2f pt1 = (linePt - 800*lineDir), pt2 = (linePt + 800*lineDir);
+        auto scaledPos = botPos * 300.f/2.f;
+        cv::line(track, {300+pt1[0], 300-pt1[1]}, {300+pt2[0], 300-pt2[1]},
+          cv::Scalar(255, 0, 0),
+          2);
+        cv::circle(track, {300+scaledPos[0], 300-scaledPos[1]}, 5, cv::Scalar(0, 255, 0),
+          -1);
+
+        imshow("HallBot", track);
+        
+      }
     }
 
     //Display raw rame and edges/hough lines frame
@@ -197,4 +226,23 @@ Driver::Mode getDrivingMode(int trackingState) {
   }
 
   return mode;
+}
+
+
+float distanceToLine(const cv::Vec4f& line, const cv::Vec2f point) {
+  cv::Vec2f l_pt1{line[2], line[3]}, l_pt2{line[2]+line[0], line[3]+line[1]};
+
+  //m = (P2.y - P1.y) / (P2.x - P1.x)
+  float m = (l_pt2[1] - l_pt1[1]) / (l_pt2[0] - l_pt1[0]);
+  //d = P1.y - m*P1.x;
+  float d = l_pt1[1] - m*l_pt1[0];
+
+  float a = m;
+  float b = -1.f;
+  float c = d;
+
+  float denom = std::sqrt(a*a + b*b);
+  float numer = std::fabs(a*point[0] + b*point[1] + c);
+  
+  return numer / denom;
 }

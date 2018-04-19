@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../../videos/calibrated/one.mp4
+  file:       ../videos/coover_sidetoside.mp4
   color_mode: bw
   max_height: 480
 
@@ -37,8 +37,8 @@ steer_pid:
 #log:
 #  name:                 test01
 
-#robot:
-#  port: /dev/ttyUSB0
+robot:
+  port: /dev/ttyUSB0
 
 cloud_comp:
   regression_type: 2

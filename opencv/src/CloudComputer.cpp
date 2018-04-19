@@ -381,9 +381,11 @@ void CloudComputer::calcHistogram()
 
 cv::Vec4f CloudComputer::getGreenLine()
 {
-
-  cv::Vec4f greenLine;
-  cv::fitLine(raw_pts_vector, greenLine, regression_type, 0, 0.01, 0.01);
+  cv::Vec4f greenLine{0.f, 0.f, 0.f, 0.f};
+  
+  if(enough_pts_already) {
+    cv::fitLine(raw_pts_vector, greenLine, regression_type, 0, 0.01, 0.01);
+  }
   return greenLine;
 }
 

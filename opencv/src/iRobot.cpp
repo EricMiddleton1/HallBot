@@ -41,6 +41,9 @@ void iRobot::start() {
 }
 
 bool iRobot::getButtonPress() const {
+  if(!port.connected()) {
+    return true;
+  }
   std::lock_guard<std::mutex> lock(mutex);
   
   bool pressCopy = buttonPress;
