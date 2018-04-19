@@ -55,6 +55,8 @@ public:
 
   void calcHistogram();
 
+  void detectFacingWall();
+
   void getPointRanges(ORB_SLAM2::Map *total_map);
 
   cv::Vec4f getGreenLine();
@@ -71,12 +73,15 @@ private:
   //Array of Points used for regression
   vector<cv::Point3f> pts_vector_3d;
   vector<cv::Point> pts_vector;
+  vector<cv::Point> raw_pts_vector;
 
   // auto rotate 3D line
   cv::Vec6f compass_line;
   cv::Vec4f long_term_line;
 
   bool wall_alert, enough_pts_already;
+
+  cv::Point adjustPtForDisp(cv::Point p);
 
   void addCircle(cv::Mat img, cv::Point center, int color);
 

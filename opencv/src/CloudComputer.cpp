@@ -78,6 +78,12 @@ cv::Point CloudComputer::convertPoint2D(cv::Point3f a3dpoint)
   return a2dpoint;
 }
 
+cv::Point CloudComputer::adjustPtForDisp(cv::Point p)
+{
+  return cv::Point(static_cast<int>(w / 2 + floor(p.x * 20)),
+                   static_cast<int>(w / 2 - floor(p.y * 20)));
+}
+
 void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 {
 
@@ -113,6 +119,8 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 
     pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
     //use only x and z
+    cv::Point p_raw = cv::Point(new_pt.x, new_pt.z);
+    raw_pts_vector.push_back(p_raw);
     cv::Point p = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
                             static_cast<int>(w / 2 - floor(new_pt.z * 20)));
     // make 3D point
@@ -142,6 +150,8 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     }
     pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
     //use only x and z
+    cv::Point p_raw = cv::Point(new_pt.x, new_pt.z);
+    raw_pts_vector.push_back(p_raw);
     cv::Point p = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
                             static_cast<int>(w / 2 - floor(new_pt.z * 20)));
     // make 3D point
@@ -189,20 +199,14 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     {
       dir_theta = 180 - dir_theta;
     }
-    //FIXME:
-    // std::cout << "[THETA]: " << dir_theta << std::endl;
-
     if (dir_theta > 55)
     {
-      // std::cout << "[THETA]: " << dir_theta << std::endl;
       wall_alert = true;
     }
     else
     {
       wall_alert = false;
     }
-    // std::cout << "[Long  T]: " << long_term_line << std::endl;
-    // std::cout << "[Short T]: " << short_term_line << std::endl;
   }
   // short term memory
   else if (pts_vector.size() > how_recent)
@@ -218,19 +222,8 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
     drawLine(hallway_image, total_line, 1, cv::Scalar(0, 255, 0));
   }
-
-  // cv::line(hallway_image, cv::Point(myLine[2] - myLine[0] * 15, myLine[3] - myLine[1] * 15),
-  //          cv::Point(myLine[2] + myLine[0] * 30,
-  //                    myLine[3] + myLine[1] * 30),
-  //          cv::Scalar(255, 0, 0), 1, 8, 0);
-
-  //std::cout << "[LINE VECTOR]: " << myLine << std::endl;
-
-  //calcHistogram();
-
   // Display
   imshow(hallway_window, hallway_image);
-  //cv::moveWindow( hallway_window, 0, 200 );
 }
 
 void CloudComputer::calcHistogram()
@@ -309,14 +302,89 @@ void CloudComputer::calcHistogram()
   cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
 }
 
+// ONLY RUN AFTER how_recent^2 pts have been found
+// void CloudComputer::detectFacingWall()
+// {
+//   // number of bins k
+//   int k = sqrt(how_recent);
+//   // int k = 10;
+//   // init hist
+//   vector<int> buckets(k);
+//   // histogram of Z axis
+//   // find max and min values
+//   int min = pts_vector.at(0).z;
+//   int max = pts_vector.at(0).z;
+//   for (int i = 0; i < (pts_vector.size() - pow(how_recent, 2)); i++)
+//   {
+//     if (pts_vector.at(i).z < min)
+//     {
+//       min = pts_vector.at(i).z;
+//     }
+//     if (pts_vector.at(i).z > max)
+//     {
+//       max = pts_vector.at(i).z;
+//     }
+//   }
+//   int range = max - min;
+//   int b_width = range / k;
+//   // start and end of current bucket being populated
+//   int start, end;
+//   for (int j = 0; j < buckets.size(); j++)
+//   {
+//     start = min + (b_width * j);
+//     end = start + b_width;
+//     buckets[j] = std::count_if((pts_vector.end() - pow(how_recent, 2)), pts_vector.end(), [start, end](const auto &cur_pt) {
+//       if (cur_pt.z >= start && cur_pt.z < end)
+//       {
+//         return true;
+//       }
+//       else
+//       {
+//         return false;
+//       }
+//     });
+//   }
+//   for (int m = 0; m < buckets.size(); m++)
+//   {
+//     std::cout << "[" << m << "]:\t" << buckets.at(m) << " ";
+//   }
+//   std::cout << endl;
+
+//   // vector<int> diffs(k);
+//   // std::adjacent_difference(buckets.begin(), buckets.end(), diffs.begin());
+//   // int max_diff = std::max_element(diffs.begin(), diffs.end()) - diffs.begin();
+//   // int left_hall = min + (b_width * (max_diff));
+//   // int min_diff = std::min_element(diffs.begin(), diffs.end()) - diffs.begin();
+//   // int right_hall = min + (b_width * (min_diff));
+//   // for (int i = 0; i < diffs.size(); i++)
+//   // {
+//   //   std::cout << diffs[i] << std::endl;
+//   // }
+//   // std::cout << "Left: " << left_hall << " Right: " << right_hall << " max diff: " << max_diff << " min diff: " << min_diff << std::endl;
+
+//   // // print lines for hall boundaries
+//   // cv::Point startPoint;
+//   // startPoint.x = left_hall; // x0
+//   // startPoint.y = 1;         // y0
+//   // cv::Point endPoint;
+//   // endPoint.x = left_hall; // x0
+//   // endPoint.y = w - 5;     // y0
+//   // // cv::clipLine(cv::Size(w, w), startPoint, endPoint);
+//   // cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
+//   // startPoint.x = right_hall; // x0
+//   // startPoint.y = 1;          // y0
+//   // endPoint.x = right_hall;   // x0
+//   // endPoint.y = w - 5;        // y0
+//   // // cv::clipLine(cv::Size(w, w), startPoint, endPoint);
+//   // cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
+// }
+
 cv::Vec4f CloudComputer::getGreenLine()
 {
-  // w / 2 + floor(new_pt.x * 20)
-  cv::Vec4f unadjusted_line = long_term_line;
-  unadjusted_line[3] = (unadjusted_line[3] - w / 2) / 20;
-  unadjusted_line[4] = (unadjusted_line[4] - w / 2) / 20;
 
-  return unadjusted_line;
+  cv::Vec4f greenLine;
+  cv::fitLine(raw_pts_vector, greenLine, regression_type, 0, 0.01, 0.01);
+  return greenLine;
 }
 
 cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
