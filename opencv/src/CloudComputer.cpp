@@ -19,20 +19,13 @@
 CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
     : IConfigurable{{"regression_type"}, std::move(params)}, regression_type{std::stof(getParam("regression_type"))}, how_recent{std::stof(getParam("how_recent"))}, theta{std::stof(getParam("theta"))}, auto_adjust_angle{std::stof(getParam("auto_adjust_angle"))}
 {
-
-  //       OLD PCL
-  //   myfifo = "myfifo";
-  //   /* create the FIFO (named pipe) */
-  //   mkfifo(myfifo, 0666);
-
   theta = (theta * PI) / 180.0;
-
   w = 500;
-
-  /// Create black empty images
+  // Create black empty images
   hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
   wall_alert = false;
   enough_pts_already = false;
+  adjusted_3d = false;
 }
 
 void CloudComputer::addCircle(cv::Mat img, cv::Point center, int color)
@@ -102,12 +95,20 @@ void CloudComputer::updatePointVectors(cv::Mat pos)
   pts_vector_3d.push_back(p3);
 }
 
+void CloudComputer::clearPointVectors()
+{
+  raw_mat_vector.clear();
+  pts_vector.clear();
+  pts_vector_3d.clear();
+}
+
 void CloudComputer::makeGreenLine()
 {
   //HACK need to add toggle for how many pts to consider...
-  vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
+  //vector<cv::Point> longterm_pts_vector(pts_vector.begin(), pts_vector.end());
   // RAW GREEN LINE
-  cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
+  //cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
+  cv::fitLine(pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
   //then convert green line to 2D diplayable coordinate system
   cv::Vec4f displayable_greenline = cv::Vec4f(long_term_line[0], long_term_line[1], (w / 2 + (long_term_line[2] * 20)), (w / 2 + (long_term_line[3] * 20)));
   drawLine(hallway_image, displayable_greenline, 1, cv::Scalar(0, 255, 0));
@@ -128,6 +129,9 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   {
     hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
   }
+
+  //TODO
+  clearPointVectors();
 
   // get map points and make iterator for reference points.
   const vector<ORB_SLAM2::MapPoint *> &map_pts = total_map->GetAllMapPoints();
@@ -165,67 +169,17 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     }
     updatePointVectors(pos);
   }
-
+  // blue reference line
+  cv::Vec4f blueline = cv::Vec4f(0, 1, w / 2, w / 2);
+  drawLine(hallway_image, blueline, 1, cv::Scalar(255, 0, 0));
   // display all 2D pts
   displayPoints();
   //regression line
   makeGreenLine();
+  // print green theta
+  // std::cout << getGreenTheta() << std::endl;
+  // std::cout << raw_mat_vector.size() << " " << pts_vector.size() << " " << pts_vector_3d.size() << std::endl;
 
-  // // long term memory
-  // if (raw_mat_vector.size() > (how_recent * how_recent) && 0) //TODO
-  // {
-  //   //REVIEW:
-  //   if (!enough_pts_already)
-  //   {
-  //     enough_pts_already = true;
-  //   }
-  //   //std::cout << "[COMPASS]: " << compass_line << endl;
-  //   //REVIEW:
-
-  //   // older -- n^2
-  //   // cv::Vec4f long_term_line;  // NOW PRIVATE VAR
-  //   vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
-  //   cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
-  //   drawLine(hallway_image, long_term_line, 1, cv::Scalar(0, 255, 0));
-  //   // newer -- n
-  //   cv::Vec4f short_term_line;
-  //   vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
-  //   cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
-  //   drawLine(hallway_image, short_term_line, 1, cv::Scalar(255, 0, 0));
-  //   // TODO NORMALIZE
-  //   // theta between lines
-  //   float top = (long_term_line[0] * short_term_line[0]) + (long_term_line[1] * short_term_line[1]);
-  //   // normalize denominator, might not be needed
-  //   // float bottom = sqrt(pow(long_term_line[0], 2) + pow(long_term_line[1], 2)) *
-  //   //                sqrt(pow(short_term_line[0], 2) + pow(short_term_line[1], 2));
-  //   float dir_theta = acos(top) * 180 / PI;
-  //   if (dir_theta > 90)
-  //   {
-  //     dir_theta = 180 - dir_theta;
-  //   }
-  //   if (dir_theta > 55)
-  //   {
-  //     wall_alert = true;
-  //   }
-  //   else
-  //   {
-  //     wall_alert = false;
-  //   }
-  // }
-  // // short term memory
-  // else if (raw_mat_vector.size() > how_recent)
-  // {
-  //   cv::Vec4f short_term_line;
-  //   vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
-  //   cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
-  //   drawLine(hallway_image, short_term_line, 1, cv::Scalar(0, 255, 0));
-  // }
-  // else
-  // {
-  //   cv::Vec4f total_line;
-  //   cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
-  //   drawLine(hallway_image, total_line, 1, cv::Scalar(0, 255, 0));
-  // }
   // Display
   imshow(hallway_window, hallway_image);
 }
@@ -391,26 +345,53 @@ cv::Vec4f CloudComputer::getGreenLine()
   return long_term_line;
 }
 
+float CloudComputer::getGreenTheta()
+{
+  // angle between green line and 2D y axis
+  float green_theta = (atan2(long_term_line[1], long_term_line[0]) * 180 / PI);
+  if (green_theta < 0)
+  {
+    green_theta += 90;
+  }
+  else if (green_theta > 0)
+  {
+    green_theta = 90 - green_theta;
+    if (green_theta != 0)
+    {
+      green_theta *= -1;
+    }
+  }
+  else
+  {
+    green_theta = 0;
+  }
+  return green_theta;
+}
+
+void CloudComputer::setCameraPos(cv::Vec2f pos)
+{
+  cam_pos = pos;
+}
+
 cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
 {
+  cv::Mat pos_clone = pos.clone();
   cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << 1, 0, 0,
                         0, cos(theta), -sin(theta),
                         0, sin(theta), cos(theta));
-  return rot_matrix * pos;
+  return rot_matrix * pos_clone;
 }
 
 cv::Mat CloudComputer::autoRotate(cv::Mat pos)
 {
-  //TODO
   // if not enough pts yet, do nothing
-  if (pts_vector_3d.size() < pow(how_recent, 2))
+  if (pts_vector_3d.size() < how_recent)
   {
     return pos;
   }
-
   // if enough pts found, check if line has been calculated
   // if line not calculated, do that and update old pts...
-  if (!compass_line[0])
+  if (!adjusted_3d)
   {
     // regresion line on 3d pts found before enough_pts_already flag thrown
     cv::fitLine(pts_vector_3d, compass_line, regression_type, 0, 0.01, 0.01);
@@ -418,32 +399,23 @@ cv::Mat CloudComputer::autoRotate(cv::Mat pos)
     cv::Mat xz_vector = (cv::Mat_<float>(1, 3) << compass_line[0], 0, compass_line[2]);
     // theta between lines
     auto_theta = acos(((xz_vector.at<float>(0) * compass_line[0]) + (xz_vector.at<float>(1) * compass_line[1]) + (xz_vector.at<float>(2) * compass_line[2])) / (sqrt(pow(compass_line[0], 2) + pow(compass_line[1], 2) + pow(compass_line[2], 2)) * sqrt(pow(xz_vector.at<float>(0), 2) + pow(xz_vector.at<float>(1), 2) + pow(xz_vector.at<float>(2), 2))));
+    // rot matrix based on auto_theta
     cv::Mat rot_matrix_init = (cv::Mat_<float>(3, 3) << 1, 0, 0,
                                0, cos(auto_theta), -sin(auto_theta),
                                0, sin(auto_theta), cos(auto_theta));
-    pts_vector.clear();
+    std::cout << "[3d THETA]: " << (auto_theta * 180 / PI) << " degrees" << std::endl;
+    // clone raw pts and clear all vectors
+    vector<cv::Mat> raw_clone(raw_mat_vector);
+    clearPointVectors();
     std::cout << "[BEGIN UPDATE OF OLD PTS]" << std::endl;
-    std::cout << (auto_theta * 180 / PI) << std::endl;
-
-    for (int i = 0; i < pts_vector_3d.size(); i++)
+    for (int i = 0; i < raw_clone.size(); i++)
     {
-      cv::Mat pt_i = (cv::Mat_<float>(3, 1) << pts_vector_3d.at(i).x, pts_vector_3d.at(i).y, pts_vector_3d.at(i).z);
-      // std::cout << pt_i << std::endl;
+      cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_clone.at(i).at<float>(0), raw_clone.at(i).at<float>(1), raw_clone.at(i).at<float>(2));
       pt_i = rot_matrix_init * pt_i;
-      // std::cout << "[a Matrix multiplied successfully]" << std::endl;
-
-      pts_vector_3d.at(i).x = static_cast<int>(pt_i.at<float>(0));
-      pts_vector_3d.at(i).y = static_cast<int>(pt_i.at<float>(1));
-      pts_vector_3d.at(i).z = static_cast<int>(pt_i.at<float>(2));
-
-      // update 2d point vector
-      cv::Point p = cv::Point(static_cast<int>(pts_vector_3d.at(i).x),
-                              static_cast<int>(pts_vector_3d.at(i).z));
-      pts_vector.push_back(p);
-
-      //TODO ADD ROTATE FOR RAW PTS
+      updatePointVectors(pt_i);
     }
     std::cout << "[FINISHED UPDATE OF OLD PTS]" << std::endl;
+    adjusted_3d = true;
   }
   //return current point after rotation made
   cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << 1, 0, 0,

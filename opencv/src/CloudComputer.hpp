@@ -61,6 +61,10 @@ public:
 
   cv::Vec4f getGreenLine();
 
+  float getGreenTheta();
+
+  void setCameraPos(cv::Vec2f pos);
+
 private:
   char *myfifo;
 
@@ -80,7 +84,10 @@ private:
   cv::Vec6f compass_line;
   cv::Vec4f long_term_line;
 
-  bool wall_alert, enough_pts_already;
+  // camera position
+  cv::Vec2f cam_pos;
+
+  bool wall_alert, enough_pts_already, adjusted_3d;
 
   void displayPoints();
 
@@ -95,6 +102,7 @@ private:
   cv::Mat euler2rot(const cv::Mat &euler);
 
   void updatePointVectors(cv::Mat pos);
+  void clearPointVectors();
 
   void makeGreenLine();
 };
