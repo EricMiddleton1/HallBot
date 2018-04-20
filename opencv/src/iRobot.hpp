@@ -35,6 +35,8 @@ public:
 
   bool retraceStep();
 
+  static void draw(cv::Mat& image, const cv::Point& pos, float angle, int size = 10.f);
+
 private:
   const int SENSOR_UPDATE_RATE = 100; //milliseconds
 
