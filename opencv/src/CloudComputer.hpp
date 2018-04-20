@@ -74,6 +74,7 @@ private:
   vector<cv::Point3f> pts_vector_3d;
   vector<cv::Point> pts_vector;
   vector<cv::Point> raw_pts_vector;
+  vector<cv::Mat> raw_mat_vector;
 
   // auto rotate 3D line
   cv::Vec6f compass_line;
@@ -81,7 +82,7 @@ private:
 
   bool wall_alert, enough_pts_already;
 
-  cv::Point adjustPtForDisp(cv::Point p);
+  void displayPoints();
 
   void addCircle(cv::Mat img, cv::Point center, int color);
 
@@ -92,4 +93,8 @@ private:
   cv::Point convertPoint2D(cv::Point3f a3dpoint);
 
   cv::Mat euler2rot(const cv::Mat &euler);
+
+  void updatePointVectors(cv::Mat pos);
+
+  void makeGreenLine();
 };

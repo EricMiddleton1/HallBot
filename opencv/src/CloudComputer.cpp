@@ -78,16 +78,46 @@ cv::Point CloudComputer::convertPoint2D(cv::Point3f a3dpoint)
   return a2dpoint;
 }
 
-cv::Point CloudComputer::adjustPtForDisp(cv::Point p)
+void CloudComputer::displayPoints()
 {
-  return cv::Point(static_cast<int>(w / 2 + floor(p.x * 20)),
-                   static_cast<int>(w / 2 - floor(p.y * 20)));
+  for (int i = 0; i < raw_mat_vector.size(); i++)
+  {
+    cv::Point p = cv::Point(static_cast<int>(w / 2 + (raw_mat_vector.at(i).at<float>(0) * 20)),
+                            static_cast<int>(w / 2 - (raw_mat_vector.at(i).at<float>(2) * 20)));
+    // std::cout << "drawing point: " << pts_vector.at(i) << " at " << p << std::endl;
+    addCircle(hallway_image, p, 0);
+  }
+}
+
+void CloudComputer::updatePointVectors(cv::Mat pos)
+{
+  //All point vecotrs are stored RAW
+  raw_mat_vector.push_back(pos.clone());
+  cv::Mat clone_pos = pos.clone();
+  //2d point vector
+  cv::Point p = cv::Point(static_cast<int>(clone_pos.at<float>(0)), static_cast<int>(clone_pos.at<float>(2)));
+  pts_vector.push_back(p);
+  //3d point vector
+  cv::Point3f p3 = cv::Point3f(static_cast<int>(clone_pos.at<float>(0)), static_cast<int>(clone_pos.at<float>(1)), static_cast<int>(clone_pos.at<float>(2)));
+  pts_vector_3d.push_back(p3);
+}
+
+void CloudComputer::makeGreenLine()
+{
+  //HACK need to add toggle for how many pts to consider...
+  vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
+  // RAW GREEN LINE
+  cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
+  //then convert green line to 2D diplayable coordinate system
+  cv::Vec4f displayable_greenline = cv::Vec4f(long_term_line[0], long_term_line[1], (w / 2 + (long_term_line[2] * 20)), (w / 2 + (long_term_line[3] * 20)));
+  drawLine(hallway_image, displayable_greenline, 1, cv::Scalar(0, 255, 0));
 }
 
 void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 {
-
+  // diplay window
   char hallway_window[] = "Hallway Projection";
+
   // set background to white if short term and long term angle is above a certain threshhold
   if (wall_alert)
   {
@@ -99,10 +129,11 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
   }
 
+  // get map points and make iterator for reference points.
   const vector<ORB_SLAM2::MapPoint *> &map_pts = total_map->GetAllMapPoints();
   const vector<ORB_SLAM2::MapPoint *> &ref_pts = total_map->GetReferenceMapPoints();
   set<ORB_SLAM2::MapPoint *> set_ref_pts(ref_pts.begin(), ref_pts.end());
-
+  // Map points loop
   for (size_t i = 0, iend = map_pts.size(); i < iend; i++)
   {
     if (map_pts[i]->isBad() || set_ref_pts.count(map_pts[i]))
@@ -116,25 +147,9 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     {
       pos = rotateWithTheta(map_pts[i]->GetWorldPos());
     }
-
-    pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
-    //use only x and z
-    cv::Point p_raw = cv::Point(new_pt.x, new_pt.z);
-    raw_pts_vector.push_back(p_raw);
-    cv::Point p = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-                            static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-    // make 3D point
-    if (!enough_pts_already)
-    {
-      cv::Point3f p3 = cv::Point3f(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-                                   static_cast<int>(w / 2 + floor(new_pt.y * 20)),
-                                   static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-      pts_vector_3d.push_back(p3);
-    }
-    pts_vector.push_back(p);
-    addCircle(hallway_image, p, 0);
+    updatePointVectors(pos);
   }
-
+  // Refernece points loop
   for (set<ORB_SLAM2::MapPoint *>::iterator sit = set_ref_pts.begin(), send = set_ref_pts.end(); sit != send; sit++)
   {
     if ((*sit)->isBad())
@@ -148,80 +163,69 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     {
       pos = rotateWithTheta((*sit)->GetWorldPos());
     }
-    pt new_pt = {pos.at<float>(0), pos.at<float>(1), pos.at<float>(2)};
-    //use only x and z
-    cv::Point p_raw = cv::Point(new_pt.x, new_pt.z);
-    raw_pts_vector.push_back(p_raw);
-    cv::Point p = cv::Point(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-                            static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-    // make 3D point
-    if (!enough_pts_already)
-    {
-      cv::Point3f p3 = cv::Point3f(static_cast<int>(w / 2 + floor(new_pt.x * 20)),
-                                   static_cast<int>(w / 2 + floor(new_pt.y * 20)),
-                                   static_cast<int>(w / 2 - floor(new_pt.z * 20)));
-      pts_vector_3d.push_back(p3);
-    }
-    pts_vector.push_back(p);
-    addCircle(hallway_image, p, 0);
+    updatePointVectors(pos);
   }
 
-  // long term memory
-  if (pts_vector.size() > (how_recent * how_recent))
-  {
+  // display all 2D pts
+  displayPoints();
+  //regression line
+  makeGreenLine();
 
-    //REVIEW:
-    if (!enough_pts_already)
-    {
-      enough_pts_already = true;
-    }
-    //std::cout << "[COMPASS]: " << compass_line << endl;
-    //REVIEW:
+  // // long term memory
+  // if (raw_mat_vector.size() > (how_recent * how_recent) && 0) //TODO
+  // {
+  //   //REVIEW:
+  //   if (!enough_pts_already)
+  //   {
+  //     enough_pts_already = true;
+  //   }
+  //   //std::cout << "[COMPASS]: " << compass_line << endl;
+  //   //REVIEW:
 
-    // older -- n^2
-    // cv::Vec4f long_term_line;  // NOW PRIVATE VAR
-    vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
-    cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, long_term_line, 1, cv::Scalar(0, 255, 0));
-    // newer -- n
-    cv::Vec4f short_term_line;
-    vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
-    cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, short_term_line, 1, cv::Scalar(255, 0, 0));
-    // TODO NORMALIZE
-    // theta between lines
-    float top = (long_term_line[0] * short_term_line[0]) + (long_term_line[1] * short_term_line[1]);
-    // normalize denominator, might not be needed
-    // float bottom = sqrt(pow(long_term_line[0], 2) + pow(long_term_line[1], 2)) *
-    //                sqrt(pow(short_term_line[0], 2) + pow(short_term_line[1], 2));
-    float dir_theta = acos(top) * 180 / PI;
-    if (dir_theta > 90)
-    {
-      dir_theta = 180 - dir_theta;
-    }
-    if (dir_theta > 55)
-    {
-      wall_alert = true;
-    }
-    else
-    {
-      wall_alert = false;
-    }
-  }
-  // short term memory
-  else if (pts_vector.size() > how_recent)
-  {
-    cv::Vec4f short_term_line;
-    vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
-    cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, short_term_line, 1, cv::Scalar(0, 255, 0));
-  }
-  else
-  {
-    cv::Vec4f total_line;
-    cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
-    drawLine(hallway_image, total_line, 1, cv::Scalar(0, 255, 0));
-  }
+  //   // older -- n^2
+  //   // cv::Vec4f long_term_line;  // NOW PRIVATE VAR
+  //   vector<cv::Point> longterm_pts_vector(pts_vector.end() - (how_recent * how_recent), pts_vector.end());
+  //   cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
+  //   drawLine(hallway_image, long_term_line, 1, cv::Scalar(0, 255, 0));
+  //   // newer -- n
+  //   cv::Vec4f short_term_line;
+  //   vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
+  //   cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
+  //   drawLine(hallway_image, short_term_line, 1, cv::Scalar(255, 0, 0));
+  //   // TODO NORMALIZE
+  //   // theta between lines
+  //   float top = (long_term_line[0] * short_term_line[0]) + (long_term_line[1] * short_term_line[1]);
+  //   // normalize denominator, might not be needed
+  //   // float bottom = sqrt(pow(long_term_line[0], 2) + pow(long_term_line[1], 2)) *
+  //   //                sqrt(pow(short_term_line[0], 2) + pow(short_term_line[1], 2));
+  //   float dir_theta = acos(top) * 180 / PI;
+  //   if (dir_theta > 90)
+  //   {
+  //     dir_theta = 180 - dir_theta;
+  //   }
+  //   if (dir_theta > 55)
+  //   {
+  //     wall_alert = true;
+  //   }
+  //   else
+  //   {
+  //     wall_alert = false;
+  //   }
+  // }
+  // // short term memory
+  // else if (raw_mat_vector.size() > how_recent)
+  // {
+  //   cv::Vec4f short_term_line;
+  //   vector<cv::Point> recent_pts_vector(pts_vector.end() - how_recent, pts_vector.end());
+  //   cv::fitLine(recent_pts_vector, short_term_line, regression_type, 0, 0.01, 0.01);
+  //   drawLine(hallway_image, short_term_line, 1, cv::Scalar(0, 255, 0));
+  // }
+  // else
+  // {
+  //   cv::Vec4f total_line;
+  //   cv::fitLine(pts_vector, total_line, regression_type, 0, 0.01, 0.01);
+  //   drawLine(hallway_image, total_line, 1, cv::Scalar(0, 255, 0));
+  // }
   // Display
   imshow(hallway_window, hallway_image);
 }
@@ -383,11 +387,8 @@ void CloudComputer::detectFacingWall()
 
 cv::Vec4f CloudComputer::getGreenLine()
 {
-
-  cv::Vec4f greenLine;
-  //HACK:
-  cv::fitLine(raw_pts_vector, greenLine, regression_type, 0, 0.01, 0.01);
-  return greenLine;
+  //REVIEW if this works
+  return long_term_line;
 }
 
 cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
@@ -400,8 +401,9 @@ cv::Mat CloudComputer::rotateWithTheta(cv::Mat pos)
 
 cv::Mat CloudComputer::autoRotate(cv::Mat pos)
 {
+  //TODO
   // if not enough pts yet, do nothing
-  if (!enough_pts_already)
+  if (pts_vector_3d.size() < pow(how_recent, 2))
   {
     return pos;
   }
