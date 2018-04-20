@@ -103,6 +103,7 @@ private:
 
   void updatePointVectors(cv::Mat pos);
   void clearPointVectors();
+  void steerPoints();
 
   void makeGreenLine();
 };

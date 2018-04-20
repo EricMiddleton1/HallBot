@@ -110,8 +110,27 @@ void CloudComputer::makeGreenLine()
   //cv::fitLine(longterm_pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
   cv::fitLine(pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
   //then convert green line to 2D diplayable coordinate system
-  cv::Vec4f displayable_greenline = cv::Vec4f(long_term_line[0], long_term_line[1], (w / 2 + (long_term_line[2] * 20)), (w / 2 + (long_term_line[3] * 20)));
-  drawLine(hallway_image, displayable_greenline, 1, cv::Scalar(0, 255, 0));
+  // cv::Vec4f displayable_greenline = cv::Vec4f(long_term_line[0], long_term_line[1], (w / 2 + (long_term_line[2] * 20)), (w / 2 + (long_term_line[3] * 20)));
+  // drawLine(hallway_image, displayable_greenline, 1, cv::Scalar(0, 255, 0));
+}
+
+void CloudComputer::steerPoints()
+{
+  float green_theta = getGreenTheta();
+  // rot matrix based on green theta
+  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
+                        0, 1, 0,
+                        -sin(green_theta), 0, cos(green_theta));
+  vector<cv::Mat> raw_clone(raw_mat_vector);
+  clearPointVectors();
+  // std::cout << "[BEGIN STEER]" << std::endl;
+  for (int i = 0; i < raw_clone.size(); i++)
+  {
+    cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_clone.at(i).at<float>(0), raw_clone.at(i).at<float>(1), raw_clone.at(i).at<float>(2));
+    pt_i = rot_matrix * pt_i;
+    updatePointVectors(pt_i);
+  }
+  // std::cout << "[FINISHED STEER]" << std::endl;
 }
 
 void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
@@ -169,16 +188,18 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     }
     updatePointVectors(pos);
   }
-  // blue reference line
-  cv::Vec4f blueline = cv::Vec4f(0, 1, w / 2, w / 2);
-  drawLine(hallway_image, blueline, 1, cv::Scalar(255, 0, 0));
-  // display all 2D pts
-  displayPoints();
   //regression line
   makeGreenLine();
+  // HACK????
+  steerPoints();
+  // display all 2D pts
+  displayPoints();
+  // new style green reference line
+  cv::Vec4f greenline = cv::Vec4f(0, 1, w / 2, w / 2);
+  drawLine(hallway_image, greenline, 1, cv::Scalar(0, 255, 0));
   // print green theta
   // std::cout << getGreenTheta() << std::endl;
-  // std::cout << raw_mat_vector.size() << " " << pts_vector.size() << " " << pts_vector_3d.size() << std::endl;
+  // std::cout << raw_mat_vector.sipts_ << " " << pts_vector.size() << " " << vector_3d.size() << std::endl;
 
   // Display
   imshow(hallway_window, hallway_image);
@@ -365,7 +386,7 @@ float CloudComputer::getGreenTheta()
   {
     green_theta = 0;
   }
-  return green_theta;
+  return green_theta * PI / 180;
 }
 
 void CloudComputer::setCameraPos(cv::Vec2f pos)
