@@ -29,6 +29,10 @@ const std::string DEBUG_WINDOW_NAME = "Vanishing Point Detector - Debug";
 Driver::Mode getDrivingMode(int trackingState);
 
 float distanceToLine(const cv::Vec4f& line, const cv::Vec2f point);
+float getRotationY(const cv::Mat& rotation);
+
+void drawHallway(cv::Mat& image, const cv::Vec4f& line, float width, float scale,
+  cv::Point offset);
 
 int main(void)
 {
@@ -89,9 +93,8 @@ int main(void)
   }
 
   while(cv::waitKey(1) == -1) {
-    float steer = 0.f;
-
     cv::Mat frame, frame_edges, frameAnotated;
+    cv::Vec2f cameraPos; //Current position of camera
 
     //Try to grab frame from video device
     if (!videoDevice->getFrame(frame))
@@ -113,42 +116,40 @@ int main(void)
     if(!pose.empty()) {
       auto R = pose(cv::Rect(0, 0, 3, 3));
       auto T = pose(cv::Rect(3, 0, 1, 3));
+      float angle;
 
-      cv::Mat cameraPos = -(R.inv()) * T;
+      cv::Mat camera3dPos = -(R.inv()) * T;
+
+      cameraPos = {camera3dPos.at<float>(0, 0), camera3dPos.at<float>(0, 2)};
+      angle = getRotationY(R);
 
       //float botX = -pose.at<float>(2, 3), botY = pose.at<float>(0, 3);
-      float botX = cameraPos.at<float>(0, 0), botY = cameraPos.at<float>(0, 2);
+      //float botX = cameraPos.at<float>(0, 0), botY = cameraPos.at<float>(0, 2);
       //std::cout << "[Info] Camera position: (" << botX << ", " << botY << ")\n";
       //std::cout << "[Info] Camera position: " << cameraPos << std::endl;
 
       if(bot) {
-        bot->setCameraPose({botX, botY}, 0.f);
+        bot->setCameraPose(cameraPos, angle);
       }
 
-			std::cout << "[Info] Position: (" << botX << ", " << botY << "), scale: "
-				<< bot->getCameraScale() << std::endl;
-
+      //Update cloud computer with current camera position
+      //cloudComp->setCameraPos(cameraPos);
+			
+      std::cout << "[Info] Position: (" << cameraPos[0] << ", " << cameraPos[1]
+        << ", " << angle*180.f/3.14f << "), scale: " << bot->getCameraScale()
+        << std::endl;
     }
-   /* 
-    if(bot) {
-      cv::Vec2f newBotPos = bot->getPosition();
-      cv::Vec2f trackP1 = lastBotPos * 300.f/4.f;
-      cv::Vec2f trackP2 = newBotPos * 300.f/4.f;
-      cv::line(track, {300+trackP1[0], 300+trackP1[1]},
-        {300+trackP2[0], 300+trackP2[1]}, cv::Scalar(255, 0, 0), 5);
-      lastBotPos = newBotPos;
-    }
-    */
     
     if(bot) {
       auto botPos = bot->getPosition();
+
       auto hallwayLine = cloudComp->getGreenLine();
 
       if(hallwayLine[0] != 0.f) {
 //        botPos[1] *= -1.f;
 //        hallwayLine[1] *= -1.f;
         float hallwayAngle = std::atan2(hallwayLine[1], hallwayLine[0]);
-        float hallwayWidth = 1.5f;
+        float hallwayWidth = 0.5f;
         
         float posInHallway = distanceToLine(hallwayLine, botPos);
         float botRayAngle = std::atan2(botPos[1], botPos[0]);
@@ -160,19 +161,22 @@ int main(void)
         driver->posInHallway(posInHallway);
         driver->hallwayAngle(hallwayAngle);
 
-        std::cout << "[Info] Bot Hallway Pos: " << posInHallway << std::endl;
+        //std::cout << "[Info] Bot Hallway Pos: " << posInHallway << std::endl;
 
+
+        float drawScale = 300.f/2.f;
         track.setTo(cv::Scalar(0, 0, 0));
         
         cv::Vec2f lineDir{hallwayLine[0], hallwayLine[1]},
           linePt{hallwayLine[2], hallwayLine[3]};
         cv::Vec2f pt1 = (linePt - 800*lineDir), pt2 = (linePt + 800*lineDir);
-        auto scaledPos = botPos * 300.f/2.f;
-        cv::line(track, {300+pt1[0], 300-pt1[1]}, {300+pt2[0], 300-pt2[1]},
-          cv::Scalar(255, 0, 0),
-          2);
-        cv::circle(track, {300+scaledPos[0], 300-scaledPos[1]}, 5, cv::Scalar(0, 255, 0),
-          -1);
+        auto scaledPos = botPos * drawScale;
+        cv::Point botPt{scaledPos[0], -scaledPos[1]};
+        cv::Point offset{300, 500};
+
+        drawHallway(track, hallwayLine, hallwayWidth, drawScale, offset);
+
+        iRobot::draw(track, botPt + offset, bot->getAngle(), 10);
 
         imshow("HallBot", track);
         
@@ -245,4 +249,51 @@ float distanceToLine(const cv::Vec4f& line, const cv::Vec2f point) {
   float numer = std::fabs(a*point[0] + b*point[1] + c);
   
   return numer / denom;
+}
+
+float sqr(float x) {
+  return x*x;
+}
+
+float getRotationY(const cv::Mat& rotation) {
+  //Create forward vector
+  cv::Mat forward(3, 1, CV_32F);
+  forward.at<float>(0) = 0.f;
+  forward.at<float>(1) = 0.f;
+  forward.at<float>(2) = 1.f;
+
+  //Rotate forward vector by matrix
+  cv::Mat rotated = rotation*forward;
+
+  //Extract X, Y coordinates
+  float x = rotated.at<float>(0), z = rotated.at<float>(2);
+
+  //Get angle from forward (Z=1)
+  return std::atan2(x, z);
+}
+
+void drawHallway(cv::Mat& image, const cv::Vec4f& hallwayLine, float width, float scale,
+  cv::Point offset) {
+  
+  //Calculate hallway line vectors
+  cv::Vec2f lineDir{hallwayLine[0], hallwayLine[1]},
+    linePt{hallwayLine[2], hallwayLine[3]},
+    v1 = (linePt - 800*lineDir), v2 = (linePt + 800*lineDir);
+  
+  //Calculate hallway normal, border vectors
+  float widthScale = width*scale/2.f;
+  cv::Vec2f hallwayNormal{-hallwayLine[1], hallwayLine[0]};
+  cv::Vec2f wall1v1{v1 + widthScale*hallwayNormal},
+    wall1v2{v2 + widthScale*hallwayNormal},
+    wall2v1{v1 - widthScale*hallwayNormal}, wall2v2{v2 - widthScale*hallwayNormal};
+  
+  //Convert vectors to points
+  cv::Point pt1 = {v1[0], -v1[1]}, pt2 = {v2[0], -v2[1]},
+    wall1pt1{wall1v1[0], -wall1v1[1]}, wall1pt2{wall1v2[0], -wall1v2[1]},
+    wall2pt1{wall2v1[0], -wall2v1[1]}, wall2pt2{wall2v2[0], -wall2v2[1]};
+
+  //Draw hallway lines
+  cv::line(image, pt1 + offset, pt2 + offset, cv::Scalar(0, 255, 0), 1);
+  cv::line(image, wall1pt1 + offset, wall1pt2 + offset, cv::Scalar(0, 255, 0), 2);
+  cv::line(image, wall2pt1 + offset, wall2pt2 + offset, cv::Scalar(0, 255, 0), 2);
 }

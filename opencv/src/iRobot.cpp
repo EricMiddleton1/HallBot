@@ -4,6 +4,8 @@
 #include <numeric>
 #include <cmath>
 
+#include <opencv2/imgproc.hpp>
+
 iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
   : IConfigurable{ {"port"},
       std::move(params) }
@@ -181,4 +183,11 @@ int16_t iRobot::parseInt16(const std::vector<uint8_t>& buffer, int index) {
 float iRobot::dist(const cv::Vec2f& p1, const cv::Vec2f& p2) {
   float dx = p1[0]-p2[0], dy = p1[1]-p2[1];
   return std::sqrt(dx*dx + dy*dy);
+}
+
+void iRobot::draw(cv::Mat& image, const cv::Point& pos, float angle, int size) {
+  int dx = size*std::sin(angle), dy = -size*std::cos(angle);
+
+  cv::circle(image, pos, size, cv::Scalar(255, 255, 255), -1);
+  cv::line(image, pos, {pos.x+dx, pos.y+dy}, cv::Scalar(0, 0, 0), 2);
 }
