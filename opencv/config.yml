@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../videos/coover_sidetoside.mp4
+  file:       ../../videos/calibrated/one.mp4
   color_mode: bw
   max_height: 480
 
@@ -44,7 +44,7 @@ cloud_comp:
   regression_type: 2
   how_recent: 900
   theta: 0
-  auto_adjust_angle: 1
+  auto_adjust_angle: 0
 
 driver:
   init_speed:            50

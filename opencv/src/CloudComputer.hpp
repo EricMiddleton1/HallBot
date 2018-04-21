@@ -20,13 +20,6 @@
 
 //PCL
 #include <iostream>
-// #include <pcl/io/pcd_io.h>
-// #include <pcl/io/ply_io.h>
-// #include <pcl/point_cloud.h>
-// #include <pcl/console/parse.h>
-// #include <pcl/common/transforms.h>
-//BROKEN
-//#include <pcl/visualization/pcl_visualizer.h>
 
 #define PI 3.14159265
 
@@ -55,7 +48,7 @@ public:
 
   void calcHistogram();
 
-  void detectFacingWall();
+  float distToFacingWall();
 
   void getPointRanges(ORB_SLAM2::Map *total_map);
 
@@ -72,7 +65,7 @@ private:
 
   float theta, auto_theta;
 
-  cv::Mat hallway_image;
+  cv::Mat hallway_image, bw_hallway_image;
 
   //Array of Points used for regression
   vector<cv::Point3f> pts_vector_3d;
@@ -104,6 +97,7 @@ private:
   void updatePointVectors(cv::Mat pos);
   void clearPointVectors();
   void steerPoints();
+  std::vector<int> getProjection(const cv::Mat &image);
 
   void makeGreenLine();
 };

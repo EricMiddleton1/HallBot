@@ -1,20 +1,8 @@
 #include "CloudComputer.hpp"
 #include <cmath>
 #include <iostream>
-// #include <fcntl.h>
-// #include <sys/stat.h>
-// #include <sys/types.h>
-// #include <unistd.h>
 #include <algorithm>
 #include <numeric>
-
-// #include <pcl/io/pcd_io.h>
-// #include <pcl/io/ply_io.h>
-// #include <pcl/point_cloud.h>
-// #include <pcl/console/parse.h>
-// #include <pcl/common/transforms.h>
-//BROKEN
-//#include <pcl/visualization/pcl_visualizer.h>
 
 CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
     : IConfigurable{{"regression_type"}, std::move(params)}, regression_type{std::stof(getParam("regression_type"))}, how_recent{std::stof(getParam("how_recent"))}, theta{std::stof(getParam("theta"))}, auto_adjust_angle{std::stof(getParam("auto_adjust_angle"))}
@@ -23,6 +11,7 @@ CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
   w = 500;
   // Create black empty images
   hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
+  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1);
   wall_alert = false;
   enough_pts_already = false;
   adjusted_3d = false;
@@ -36,14 +25,13 @@ void CloudComputer::addCircle(cv::Mat img, cv::Point center, int color)
   circle(img,
          center,
          0.1,
-         cv::Scalar(color, 0, 255),
+         cv::Scalar(color, 255, 255),
          thickness,
          lineType);
 }
 
 void CloudComputer::drawLine(cv::Mat img, cv::Vec4f line, int thickness, cv::Scalar color)
 {
-
   // calculate start point
   cv::Point startPoint;
   startPoint.x = line[2] - w * line[0]; // x0
@@ -52,7 +40,6 @@ void CloudComputer::drawLine(cv::Mat img, cv::Vec4f line, int thickness, cv::Sca
   cv::Point endPoint;
   endPoint.x = line[2] + w * line[0]; //x[1]
   endPoint.y = line[3] + w * line[1]; //y[1]
-
   // draw overlay of bottom lines on image
   cv::clipLine(cv::Size(w, w), startPoint, endPoint);
   cv::line(img, startPoint, endPoint, color, thickness, 8, 0);
@@ -73,12 +60,18 @@ cv::Point CloudComputer::convertPoint2D(cv::Point3f a3dpoint)
 
 void CloudComputer::displayPoints()
 {
+  float green_theta = getGreenTheta();
+  // rot matrix based on green theta
+  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
+                        0, 1, 0,
+                        -sin(green_theta), 0, cos(green_theta));
   for (int i = 0; i < raw_mat_vector.size(); i++)
   {
-    cv::Point p = cv::Point(static_cast<int>(w / 2 + (raw_mat_vector.at(i).at<float>(0) * 20)),
-                            static_cast<int>(w / 2 - (raw_mat_vector.at(i).at<float>(2) * 20)));
-    // std::cout << "drawing point: " << pts_vector.at(i) << " at " << p << std::endl;
-    addCircle(hallway_image, p, 0);
+    cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
+    pt_i = rot_matrix * pt_i;
+    cv::Point p = cv::Point(static_cast<int>(w / 2 + (pt_i.at<float>(0) * 50)),
+                            static_cast<int>((3 * w / 4) - (pt_i.at<float>(2) * 50)));
+    addCircle(hallway_image, p, 255);
   }
 }
 
@@ -190,8 +183,6 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   }
   //regression line
   makeGreenLine();
-  // HACK????
-  steerPoints();
   // display all 2D pts
   displayPoints();
   // new style green reference line
@@ -200,7 +191,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   // print green theta
   // std::cout << getGreenTheta() << std::endl;
   // std::cout << raw_mat_vector.sipts_ << " " << pts_vector.size() << " " << vector_3d.size() << std::endl;
-
+  // std::cout << distToFacingWall() << std::endl;
   // Display
   imshow(hallway_window, hallway_image);
 }
@@ -282,83 +273,80 @@ void CloudComputer::calcHistogram()
 }
 
 // ONLY RUN AFTER how_recent^2 pts have been found
-/*
-void CloudComputer::detectFacingWall()
+
+std::vector<int> CloudComputer::getProjection(const cv::Mat &image)
 {
-  // number of bins k
-  int k = sqrt(how_recent);
-  // int k = 10;
-  // init hist
-  vector<int> buckets(k);
-  // histogram of Z axis
-  // find max and min values
-  int min = pts_vector.at(0).z;
-  int max = pts_vector.at(0).z;
-  for (int i = 0; i < (pts_vector.size() - pow(how_recent, 2)); i++)
-  {
-    if (pts_vector.at(i).z < min)
-    {
-      min = pts_vector.at(i).z;
-    }
-    if (pts_vector.at(i).z > max)
-    {
-      max = pts_vector.at(i).z;
-    }
-  }
-  int range = max - min;
-  int b_width = range / k;
-  // start and end of current bucket being populated
-  int start, end;
-  for (int j = 0; j < buckets.size(); j++)
-  {
-    start = min + (b_width * j);
-    end = start + b_width;
-    buckets[j] = std::count_if((pts_vector.end() - pow(how_recent, 2)), pts_vector.end(), [start, end](const auto &cur_pt) {
-      if (cur_pt.z >= start && cur_pt.z < end)
-      {
-        return true;
-      }
-      else
-      {
-        return false;
-      }
-    });
-  }
-  for (int m = 0; m < buckets.size(); m++)
-  {
-    std::cout << "[" << m << "]:\t" << buckets.at(m) << " ";
-  }
-  std::cout << endl;
 
-  // vector<int> diffs(k);
-  // std::adjacent_difference(buckets.begin(), buckets.end(), diffs.begin());
-  // int max_diff = std::max_element(diffs.begin(), diffs.end()) - diffs.begin();
-  // int left_hall = min + (b_width * (max_diff));
-  // int min_diff = std::min_element(diffs.begin(), diffs.end()) - diffs.begin();
-  // int right_hall = min + (b_width * (min_diff));
-  // for (int i = 0; i < diffs.size(); i++)
-  // {
-  //   std::cout << diffs[i] << std::endl;
-  // }
-  // std::cout << "Left: " << left_hall << " Right: " << right_hall << " max diff: " << max_diff << " min diff: " << min_diff << std::endl;
+  std::vector<int> projection(image.rows);
 
-  // // print lines for hall boundaries
-  // cv::Point startPoint;
-  // startPoint.x = left_hall; // x0
-  // startPoint.y = 1;         // y0
-  // cv::Point endPoint;
-  // endPoint.x = left_hall; // x0
-  // endPoint.y = w - 5;     // y0
-  // // cv::clipLine(cv::Size(w, w), startPoint, endPoint);
-  // cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
-  // startPoint.x = right_hall; // x0
-  // startPoint.y = 1;          // y0
-  // endPoint.x = right_hall;   // x0
-  // endPoint.y = w - 5;        // y0
-  // // cv::clipLine(cv::Size(w, w), startPoint, endPoint);
-  // cv::line(hallway_image, startPoint, endPoint, cv::Scalar(0, 255, 255), 1, 8, 0);
+  for (unsigned int i = 0; i < projection.size(); ++i)
+  {
+    projection[i] = cv::countNonZero(image(cv::Rect(0, i, image.cols, 1)));
+  }
+
+  return projection;
 }
-*/
+
+float CloudComputer::distToFacingWall()
+{
+  // reset image
+  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1);
+  float green_theta = getGreenTheta();
+  // rot matrix based on green theta
+  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
+                        0, 1, 0,
+                        -sin(green_theta), 0, cos(green_theta));
+  for (int i = 0; i < raw_mat_vector.size(); i++)
+  {
+    cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
+    pt_i = rot_matrix * pt_i;
+    cv::Point p = cv::Point(static_cast<int>(w / 2 + (pt_i.at<float>(0) * 50)),
+                            static_cast<int>((3 * w / 4) - (pt_i.at<float>(2) * 50)));
+    bw_hallway_image.at<cv::Vec3b>(p) = cv::Vec3b(255, 255, 255);
+  }
+  // get average
+  std::vector<int> proj = getProjection(bw_hallway_image);
+  int sum = std::accumulate(proj.begin(), proj.end(), 0);
+  int total = std::count_if(proj.begin(), proj.end(), [](int value) {
+    if (value)
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+  });
+  int average = sum / total;
+
+  // loop from the back ;)
+  bool found_wall = false;
+  int k = 0;
+  while (!found_wall && k < proj.size())
+  {
+    if (proj[k] > average)
+    {
+      // convert to raw coord
+      cv::Vec4f line = cv::Vec4f(1, 0, 5, k);
+      drawLine(hallway_image, line, 1, cv::Vec3b(255, 0, 0));
+      float raw_y = (k - (3.f * w / 4.f)) / 50.f;
+      // float raw_y = ((3.f * w / 4.f) - (k / 50.f));
+      // rotate camera
+      float green_theta = getGreenTheta();
+      // rot matrix based on green theta
+      cv::Mat rot_matrix = (cv::Mat_<float>(2, 2) << cos(green_theta), -sin(green_theta),
+                            sin(green_theta), cos(green_theta));
+      cv::Mat cam = (cv::Mat_<float>(2, 1) << cam_pos[0], cam_pos[1]);
+      cv::Mat rot_cam = rot_matrix * cam;
+      float cam_y = cam.at<float>(1);
+      //TODO check for negative output??
+      // std::cout << "wall: " << raw_y << " cam: " << cam_pos << endl;
+      return -raw_y - cam_y;
+    }
+    k++;
+  }
+  return -1;
+}
 
 cv::Vec4f CloudComputer::getGreenLine()
 {
@@ -369,6 +357,17 @@ cv::Vec4f CloudComputer::getGreenLine()
 float CloudComputer::getGreenTheta()
 {
   // angle between green line and 2D y axis
+  // float green_theta = atan2(-long_term_line[0], long_term_line[1]);
+  // if (green_theta > PI / 2)
+  // {
+  //   green_theta -= PI;
+  // }
+  // else if (green_theta < PI / 2)
+  // {
+  //   green_theta += PI;
+  // }
+
+  // return green_theta;
   float green_theta = (atan2(long_term_line[1], long_term_line[0]) * 180 / PI);
   if (green_theta < 0)
   {
@@ -428,7 +427,7 @@ cv::Mat CloudComputer::autoRotate(cv::Mat pos)
     // clone raw pts and clear all vectors
     vector<cv::Mat> raw_clone(raw_mat_vector);
     clearPointVectors();
-    std::cout << "[BEGIN UPDATE OF OLD PTS]" << std::endl;
+    std::cout << "[BEGIN UPDATE OF " << raw_clone.size() << " OLD PTS]" << std::endl;
     for (int i = 0; i < raw_clone.size(); i++)
     {
       cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_clone.at(i).at<float>(0), raw_clone.at(i).at<float>(1), raw_clone.at(i).at<float>(2));
