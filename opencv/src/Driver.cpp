@@ -114,8 +114,11 @@ void Driver::update() {
       }
       else if(m_hallwayWidth != 0.f) {
         auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
-        auto distFromLeft = m_hallwayPos,
-          distFromRight = m_hallwayWidth - m_hallwayPos;
+        auto distFromLeft = m_hallwayWidth/2.f - m_hallwayPos,
+          distFromRight = m_hallwayWidth - distFromLeft;
+
+        std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
+          << distFromRight << std::endl;
 /*
         std::cout << "[Info] Angle in hallway: " << angleInHallway*180.f/3.14159f
           << std::endl;
