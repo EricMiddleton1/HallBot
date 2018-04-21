@@ -202,7 +202,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   // std::cout << raw_mat_vector.sipts_ << " " << pts_vector.size() << " " << vector_3d.size() << std::endl;
 
   // Display
-  imshow(hallway_window, hallway_image);
+  //imshow(hallway_window, hallway_image);
 }
 
 void CloudComputer::calcHistogram()
@@ -369,7 +369,15 @@ cv::Vec4f CloudComputer::getGreenLine()
 float CloudComputer::getGreenTheta()
 {
   // angle between green line and 2D y axis
-  float green_theta = (atan2(long_term_line[1], long_term_line[0]) * 180 / PI);
+  float green_theta = atan2(-long_term_line[0], long_term_line[1]);
+
+  if(green_theta > PI/2) {
+    green_theta -= PI/2;
+  }
+  else if(green_theta < -PI/2) {
+    green_theta += PI/2;
+  }
+  /*
   if (green_theta < 0)
   {
     green_theta += 90;
@@ -387,6 +395,9 @@ float CloudComputer::getGreenTheta()
     green_theta = 0;
   }
   return green_theta * PI / 180;
+  */
+
+  return green_theta;
 }
 
 void CloudComputer::setCameraPos(cv::Vec2f pos)

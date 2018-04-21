@@ -146,6 +146,8 @@ int main(void)
       if(hallwayLine[0] != 0.f) {
         float hallwayAngle = cloudComp->getGreenTheta();
         float hallwayWidth = 0.5f;
+
+        std::cout << "[Info] Hallway theta: " << hallwayAngle*180.f/3.14159f << std::endl;
         
         float posInHallway = distanceToLine(hallwayLine, botPos);
         float botRayAngle = std::atan2(botPos[1], botPos[0]);
