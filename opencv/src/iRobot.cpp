@@ -186,7 +186,7 @@ float iRobot::dist(const cv::Vec2f& p1, const cv::Vec2f& p2) {
 }
 
 void iRobot::draw(cv::Mat& image, const cv::Point& pos, float angle, int size) {
-  int dx = size*std::sin(angle), dy = -size*std::cos(angle);
+  int dx = size*std::sin(-angle), dy = -size*std::cos(-angle);
 
   cv::circle(image, pos, size, cv::Scalar(255, 255, 255), -1);
   cv::line(image, pos, {pos.x+dx, pos.y+dy}, cv::Scalar(0, 0, 0), 2);
