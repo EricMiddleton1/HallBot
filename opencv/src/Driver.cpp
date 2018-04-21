@@ -102,29 +102,37 @@ void Driver::update() {
     else if(m_mode == Mode::Tracking) {
       if(m_moveState == MoveState::Turn) {
         auto curAngle = m_bot->getAngle();
+/*
+        std::cout << "[Info] Current angle, desired angle: "
+          << curAngle*180.f/3.14159f << ", " << m_desiredAngle*180.f/3.14159f
+          << std::endl;
+        */
         if((m_turnDir > 0 && curAngle >= m_desiredAngle) ||
             (m_turnDir <= 0 && curAngle <= m_desiredAngle)) {
           stopTurn();
         }
-        else if(m_hallwayWidth != 0.f) {
-          auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
-          auto distFromLeft = m_hallwayPos,
-            distFromRight = m_hallwayWidth - m_hallwayPos;
+      }
+      else if(m_hallwayWidth != 0.f) {
+        auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
+        auto distFromLeft = m_hallwayPos,
+          distFromRight = m_hallwayWidth - m_hallwayPos;
+/*
+        std::cout << "[Info] Angle in hallway: " << angleInHallway*180.f/3.14159f
+          << std::endl;
+*/
+        if(angleInHallway > 0 && distFromLeft <= m_wallTurnDistance) {
+          //Getting too close to left wall, turn right
+          startTurn(-m_zigzag_angle);
 
-          if(angleInHallway > 0 && distFromLeft <= m_wallTurnDistance) {
-            //Getting too close to left wall, turn right
-            startTurn(-m_zigzag_angle);
+          std::cout << "[Info] Driver: Too close to left wall, turning right"
+            << std::endl;
+        }
+        else if(angleInHallway <= 0 && distFromRight <= m_wallTurnDistance) {
+          //Getting too close to right wall, turn left
+          startTurn(m_zigzag_angle);
 
-            std::cout << "[Info] Driver: Too close to left wall, turning right"
-              << std::endl;
-          }
-          else if(angleInHallway <= 0 && distFromRight <= m_wallTurnDistance) {
-            //Getting too close to right wall, turn left
-            startTurn(m_zigzag_angle);
-
-            std::cout << "[Info] Driver: Too close to right wall, turning left"
-              << std::endl;
-          }
+          std::cout << "[Info] Driver: Too close to right wall, turning left"
+            << std::endl;
         }
       }
     }
