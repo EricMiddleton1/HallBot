@@ -108,10 +108,7 @@ int main(void)
     auto pose = slammer->process(frame);
     frameAnotated = slammer->draw();
 
-    if(driver) {
-      driver->mode(getDrivingMode(slammer->getTrackingState()));
-      driver->update();
-    }
+
     
     if(!pose.empty()) {
       auto R = pose(cv::Rect(0, 0, 3, 3));
@@ -134,10 +131,11 @@ int main(void)
 
       //Update cloud computer with current camera position
       //cloudComp->setCameraPos(cameraPos);
-			
+			/*
       std::cout << "[Info] Position: (" << cameraPos[0] << ", " << cameraPos[1]
         << ", " << angle*180.f/3.14f << "), scale: " << bot->getCameraScale()
         << std::endl;
+        */
     }
     
     if(bot) {
@@ -146,9 +144,7 @@ int main(void)
       auto hallwayLine = cloudComp->getGreenLine();
 
       if(hallwayLine[0] != 0.f) {
-//        botPos[1] *= -1.f;
-//        hallwayLine[1] *= -1.f;
-        float hallwayAngle = std::atan2(hallwayLine[1], hallwayLine[0]);
+        float hallwayAngle = cloudComp->getGreenTheta();
         float hallwayWidth = 0.5f;
         
         float posInHallway = distanceToLine(hallwayLine, botPos);
@@ -181,6 +177,11 @@ int main(void)
         imshow("HallBot", track);
         
       }
+    }
+
+    if(driver) {
+      driver->mode(getDrivingMode(slammer->getTrackingState()));
+      driver->update();
     }
 
     //Display raw rame and edges/hough lines frame

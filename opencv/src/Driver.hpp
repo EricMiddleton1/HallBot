@@ -43,7 +43,6 @@ public:
   void posInHallway(float pos);
 
   //Angle of hallway [-180, 180]
-  //Such that 0 is forward in the hallway
   float hallwayAngle() const;
   void hallwayAngle(float angle);
 
