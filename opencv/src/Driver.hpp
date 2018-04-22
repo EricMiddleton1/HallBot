@@ -46,9 +46,13 @@ public:
   float hallwayAngle() const;
   void hallwayAngle(float angle);
 
+  void setDistanceToHallwayEnd(float dist);
+
   void turn(Side side);
 
   void update();
+
+  void draw(cv::Mat& image, float scale) const;
 
 private:
   enum class MoveState {
@@ -76,6 +80,7 @@ private:
   float m_hallwayWidth;
   float m_hallwayPos;
   float m_hallwayAngle;
+  float m_distToHallwayEnd;
 
   MoveState m_moveState;
   float m_desiredAngle;
