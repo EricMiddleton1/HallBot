@@ -202,7 +202,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   // std::cout << raw_mat_vector.sipts_ << " " << pts_vector.size() << " " << vector_3d.size() << std::endl;
 
   // Display
-  //imshow(hallway_window, hallway_image);
+  imshow(hallway_window, hallway_image);
 }
 
 void CloudComputer::calcHistogram()

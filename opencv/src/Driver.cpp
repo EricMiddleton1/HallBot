@@ -88,10 +88,16 @@ void Driver::update() {
     //Accumulate distance traveled
     m_movementDistance += m_bot->getDistance();
 
-    if(m_mode == Mode::Retracing) {
-      std::cout << "[Info] Driver: Distance " << -m_movementDistance << " of total "
-        << m_motion.back().distance << " retraced" << std::endl;
+        auto distFromLeft = m_hallwayWidth/2.f - m_hallwayPos,
+          distFromRight = m_hallwayWidth - distFromLeft;
 
+        std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
+          << distFromRight << std::endl;
+
+    if(m_mode == Mode::Retracing) {
+/*      std::cout << "[Info] Driver: Distance " << -m_movementDistance << " of total "
+        << m_motion.back().distance << " retraced" << std::endl;
+*/
       if((-m_movementDistance) >= m_motion.back().distance) {
         std::cout << "[Info] Driver: Retrace complete for movement ("
           << m_motion.back().left << ", " << m_motion.back().right << ")" << std::endl;
@@ -116,9 +122,10 @@ void Driver::update() {
         auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
         auto distFromLeft = m_hallwayWidth/2.f - m_hallwayPos,
           distFromRight = m_hallwayWidth - distFromLeft;
-
+/*
         std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
           << distFromRight << std::endl;
+					*/
 /*
         std::cout << "[Info] Angle in hallway: " << angleInHallway*180.f/3.14159f
           << std::endl;
