@@ -46,7 +46,7 @@ public:
 
   cv::Mat autoRotate(cv::Mat pos);
 
-  void calcHistogram();
+  void curHallwayHistogram();
 
   float distToFacingWall();
 
@@ -57,11 +57,13 @@ public:
   float getGreenTheta();
 
   void setCameraPos(cv::Vec2f pos);
+  cv::Vec2f getHallPosition();
+  float getWidth();
 
 private:
   char *myfifo;
 
-  int w, regression_type, how_recent, auto_adjust_angle;
+  int w, regression_type, how_recent, auto_adjust_angle, left_wall, right_wall;
 
   float theta, auto_theta;
 
@@ -90,8 +92,8 @@ private:
 
   cv::Vec4f convertLine2D(cv::Vec6f a3dline);
 
-  cv::Point convertPoint2D(cv::Point3f a3dpoint);
-
+  int convertPoint2D(auto num, int axis);
+  float undoConvertPoint2D(int num, int axis);
   cv::Mat euler2rot(const cv::Mat &euler);
 
   void updatePointVectors(cv::Mat pos);
@@ -100,4 +102,5 @@ private:
   std::vector<int> getProjection(const cv::Mat &image);
 
   void makeGreenLine();
+  void displayCamera();
 };
