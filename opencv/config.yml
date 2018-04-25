@@ -44,7 +44,7 @@ cloud_comp:
   regression_type: 2
   how_recent: 900
   theta: 0
-  auto_adjust_angle: 0
+  auto_adjust_angle: 1
 
 driver:
   init_speed:            50

@@ -11,17 +11,18 @@ CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
   w = 500;
   // Create black empty images
   hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
-  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1);
+  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
   wall_alert = false;
   enough_pts_already = false;
   adjusted_3d = false;
+  stored_green_theta = -1000;
+  green_theta_count = 50;
 }
 
 void CloudComputer::addCircle(cv::Mat img, cv::Point center, int color)
 {
   int thickness = -1;
   int lineType = 8;
-
   circle(img,
          center,
          0.1,
@@ -47,6 +48,7 @@ void CloudComputer::drawLine(cv::Mat img, cv::Vec4f line, int thickness, cv::Sca
 
 cv::Vec4f CloudComputer::convertLine2D(cv::Vec6f a3dline)
 {
+  // preserve only X and Z
   cv::Vec4f a2dline = cv::Vec4f(a3dline[0], a3dline[2], a3dline[3], a3dline[5]);
   return a2dline;
 }
@@ -60,7 +62,7 @@ int CloudComputer::convertPoint2D(auto num, int axis)
   }
   else
   {
-    auto output = static_cast<int>(9 * w / 10 - (num * 100));
+    auto output = static_cast<int>(9.5 * w / 10 - (num * 100));
     return output;
   }
 }
@@ -97,9 +99,9 @@ void CloudComputer::displayPoints()
 
 void CloudComputer::updatePointVectors(cv::Mat pos)
 {
-  //All point vecotrs are stored RAW
-  raw_mat_vector.push_back(pos.clone());
   cv::Mat clone_pos = pos.clone();
+  //All point vectors are stored RAW
+  raw_mat_vector.push_back(clone_pos);
   //2d point vector
   cv::Point p = cv::Point(static_cast<int>(clone_pos.at<float>(0)), static_cast<int>(clone_pos.at<float>(2)));
   pts_vector.push_back(p);
@@ -118,7 +120,10 @@ void CloudComputer::clearPointVectors()
 void CloudComputer::makeGreenLine()
 {
   //HACK need to add toggle for how many pts to consider...
-  cv::fitLine(pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
+  if (pts_vector.size() > 0)
+  {
+    cv::fitLine(pts_vector, long_term_line, regression_type, 0, 0.01, 0.01);
+  }
 }
 
 void CloudComputer::steerPoints()
@@ -190,10 +195,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   {
     hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
   }
-
-  //TODO
   clearPointVectors();
-
   // get map points and make iterator for reference points.
   const vector<ORB_SLAM2::MapPoint *> &map_pts = total_map->GetAllMapPoints();
   const vector<ORB_SLAM2::MapPoint *> &ref_pts = total_map->GetReferenceMapPoints();
@@ -206,34 +208,41 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
     cv::Mat pos;
     if (auto_adjust_angle)
     {
-      pos = autoRotate(map_pts[i]->GetWorldPos());
+      pos = map_pts[i]->GetWorldPos().clone();
+      pos = autoRotate(pos);
     }
     else
     {
-      pos = rotateWithTheta(map_pts[i]->GetWorldPos());
+      pos = map_pts[i]->GetWorldPos().clone();
+      pos = rotateWithTheta(pos);
     }
     updatePointVectors(pos);
   }
-  // Refernece points loop
+  // // Refernece points loop
   for (set<ORB_SLAM2::MapPoint *>::iterator sit = set_ref_pts.begin(), send = set_ref_pts.end(); sit != send; sit++)
   {
     if ((*sit)->isBad())
       continue;
-    cv::Mat pos;
+    cv::Mat pos2;
     if (auto_adjust_angle)
     {
-      pos = autoRotate((*sit)->GetWorldPos());
+      pos2 = (*sit)->GetWorldPos().clone();
+      pos2 = autoRotate(pos2);
     }
     else
     {
-      pos = rotateWithTheta((*sit)->GetWorldPos());
+      pos2 = (*sit)->GetWorldPos().clone();
+      pos2 = rotateWithTheta(pos2);
     }
-    updatePointVectors(pos);
+    updatePointVectors(pos2);
   }
   //regression line
   makeGreenLine();
   // width histogram
-  curHallwayHistogram();
+  //FIXME:
+  //REVIEW THIS
+  curHallwayHistogram(); //HACK
+  //REVIEW THIS
   // display all 2D pts
   displayPoints();
   // new style green reference line
@@ -241,7 +250,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   drawLine(hallway_image, greenline, 1, cv::Scalar(0, 255, 0));
   // display camera
   displayCamera();
-  std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
+  //std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
   // Display
   imshow(hallway_window, hallway_image);
 }
@@ -257,10 +266,15 @@ void CloudComputer::curHallwayHistogram()
                         -sin(green_theta), 0, cos(green_theta));
   for (int i = 0; i < raw_mat_vector.size(); i++)
   {
+    // Get each raw mat vector point and create a mat
     cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
-    pt_i = rot_matrix * pt_i;
-    cv::Point p = cv::Point(convertPoint2D(pt_i.at<float>(2), 1), convertPoint2D(pt_i.at<float>(0), 0));
-    bw_hallway_image.at<cv::Vec3b>(p) = cv::Vec3b(255, 255, 255);
+    cv::Mat post_rotation = rot_matrix * pt_i;
+    // pt_i = rot_matrix * pt_i;
+    cv::Point p = cv::Point(convertPoint2D(post_rotation.at<float>(2), 1), convertPoint2D(post_rotation.at<float>(0), 0));
+    // bw_hallway_image.at<int>(p) = cv::Vec3b(255, 255, 255); // FUCK THIS SHIT
+    // bw_hallway_image.at<int>(p.x, p.y) = 1;
+    //REVIEW
+    addCircle(bw_hallway_image, p, 255);
   }
   // rotate image 90 counterclockwise
   // cv::rotate(bw_hallway_image, bw_hallway_image, 0);
@@ -277,6 +291,10 @@ void CloudComputer::curHallwayHistogram()
       return false;
     }
   });
+  if (!total)
+  {
+    return;
+  }
   int average = sum / total;
 
   // char hist_window[] = "WIDTH HISTOGRAM YO";
@@ -307,8 +325,8 @@ void CloudComputer::curHallwayHistogram()
     }
     i++;
   }
-  left_wall = w - left_wall;
-  right_wall = w - right_wall;
+  // left_wall = w - left_wall;
+  // right_wall = w - right_wall;
   // display walls
   cv::Vec4f left_line = cv::Vec4f(0, 1, left_wall, 5);
   drawLine(hallway_image, left_line, 1, cv::Vec3b(10, 255, 255));
@@ -338,6 +356,7 @@ float CloudComputer::distToFacingWall()
   cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
                         0, 1, 0,
                         -sin(green_theta), 0, cos(green_theta));
+
   for (int i = 0; i < raw_mat_vector.size(); i++)
   {
     cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
@@ -358,6 +377,10 @@ float CloudComputer::distToFacingWall()
       return false;
     }
   });
+  if (!total)
+  {
+    return -1;
+  }
   int average = sum / total;
 
   // loop from the back ;)
@@ -427,7 +450,20 @@ float CloudComputer::getGreenTheta()
   {
     green_theta = 0;
   }
-  return green_theta * PI / 180;
+  //Turn into radians
+  green_theta = green_theta * PI / 180;
+  // if first green theta calculated:
+  if(stored_green_theta == -1000) {
+    stored_green_theta = green_theta;
+  } else {
+    // filter
+    stored_green_theta = (stored_green_theta * (1 - (green_theta_count/100.f))) + (green_theta * (green_theta_count/100.f));
+    if (green_theta_count > 1) {
+      green_theta_count -= 0.5f;
+    }
+  }
+
+  return stored_green_theta;
 }
 
 void CloudComputer::setCameraPos(cv::Vec2f pos)
@@ -455,6 +491,7 @@ cv::Mat CloudComputer::autoRotate(cv::Mat pos)
   // if line not calculated, do that and update old pts...
   if (!adjusted_3d)
   {
+    std::cout << "[ANGLE AUTO ADJUSTING...]" << std::endl;
     // regresion line on 3d pts found before enough_pts_already flag thrown
     cv::fitLine(pts_vector_3d, compass_line, regression_type, 0, 0.01, 0.01);
     // create vector on X Z plane

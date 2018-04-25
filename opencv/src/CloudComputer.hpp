@@ -65,14 +65,16 @@ private:
 
   int w, regression_type, how_recent, auto_adjust_angle, left_wall, right_wall;
 
-  float theta, auto_theta;
+  int green_theta_count; // used in filter
+
+  float theta, auto_theta, stored_green_theta;
 
   cv::Mat hallway_image, bw_hallway_image;
 
   //Array of Points used for regression
   vector<cv::Point3f> pts_vector_3d;
   vector<cv::Point> pts_vector;
-  vector<cv::Point> raw_pts_vector;
+  vector<cv::Point> raw_pts_vector; // REVIEW
   vector<cv::Mat> raw_mat_vector;
 
   // auto rotate 3D line
