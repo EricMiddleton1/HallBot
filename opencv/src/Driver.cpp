@@ -3,6 +3,8 @@
 #include <string>
 #include <iostream>
 
+#include <opencv2/imgproc.hpp>
+
 Driver::Driver(std::vector<IConfigurable::Param>&& params)
   : IConfigurable{ {"init_speed", "tracking_speed", "retracing_speed", "turn_intensity",
       "wall_turn_distance", "zigzag_angle"},
@@ -12,6 +14,7 @@ Driver::Driver(std::vector<IConfigurable::Param>&& params)
   , m_hallwayWidth{0.f}
   , m_hallwayPos{0.f}
   , m_hallwayAngle{0.f}
+  , m_distToHallwayEnd{0.f}
   , m_moveState{MoveState::Forward}
   , m_desiredAngle{0.f}
   , m_turnDir{0}
@@ -83,15 +86,25 @@ void Driver::hallwayAngle(float angle) {
   m_hallwayAngle = angle;
 }
 
+void Driver::setDistanceToHallwayEnd(float dist) {
+  m_distToHallwayEnd = dist;
+}
+
 void Driver::update() {
   if(m_running) {
     //Accumulate distance traveled
     m_movementDistance += m_bot->getDistance();
+/*
+        auto distFromLeft = m_hallwayWidth/2.f - m_hallwayPos,
+          distFromRight = m_hallwayWidth - distFromLeft;
 
+        std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
+          << distFromRight << std::endl;
+*/
     if(m_mode == Mode::Retracing) {
-      std::cout << "[Info] Driver: Distance " << -m_movementDistance << " of total "
+/*      std::cout << "[Info] Driver: Distance " << -m_movementDistance << " of total "
         << m_motion.back().distance << " retraced" << std::endl;
-
+*/
       if((-m_movementDistance) >= m_motion.back().distance) {
         std::cout << "[Info] Driver: Retrace complete for movement ("
           << m_motion.back().left << ", " << m_motion.back().right << ")" << std::endl;
@@ -114,8 +127,12 @@ void Driver::update() {
       }
       else if(m_hallwayWidth != 0.f) {
         auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
-        auto distFromLeft = m_hallwayPos,
-          distFromRight = m_hallwayWidth - m_hallwayPos;
+        auto distFromLeft = m_hallwayWidth/2.f - m_hallwayPos,
+          distFromRight = m_hallwayWidth - distFromLeft;
+/*
+        std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
+          << distFromRight << std::endl;
+					*/
 /*
         std::cout << "[Info] Angle in hallway: " << angleInHallway*180.f/3.14159f
           << std::endl;
@@ -250,4 +267,29 @@ void Driver::setMotion(float left, float right) {
     << speed*right << ")" << std::endl;
 
   m_bot->setWheels(speed*left, speed*right);
+}
+
+void Driver::draw(cv::Mat& image, float scale) const {
+  auto width = image.cols, height = image.rows;
+
+  int baseY = 3*height/4;
+
+  //Draw hallway walls
+  int leftPos = (width/2.f - scale*m_hallwayWidth/2.f),
+    rightPos = (width/2.f + scale*m_hallwayWidth/2.f);
+  cv::line(image, {leftPos, 0}, {leftPos, height}, cv::Scalar(255, 0, 0), 2);
+  cv::line(image, {rightPos, 0}, {rightPos, height}, cv::Scalar(255, 0, 0), 2);
+
+  //Draw upcoming wall
+  int wallPos = baseY - (scale*m_distToHallwayEnd);
+  cv::line(image, {leftPos, wallPos}, {rightPos, wallPos}, cv::Scalar(0, 0, 255), 2);
+
+  //Draw robot
+  int botX = (width/2.f + scale*m_hallwayPos), botY = baseY;
+  float botRadius = 0.33f/2.f, angle = m_bot->getAngle() - m_hallwayAngle;
+  int dx = (scale*botRadius*std::sin(-angle)),
+    dy = (scale*botRadius*std::cos(-angle));
+  cv::circle(image, {botX, botY}, (botRadius * scale), cv::Scalar(255, 255, 255),
+    -1);
+  cv::line(image, {botX, botY}, {botX+dx, botY-dy}, cv::Scalar(0, 0, 0), 2);
 }
