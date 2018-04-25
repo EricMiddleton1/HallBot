@@ -4,10 +4,11 @@
 #include <iostream>
 
 #include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 
 Driver::Driver(std::vector<IConfigurable::Param>&& params)
   : IConfigurable{ {"init_speed", "tracking_speed", "retracing_speed", "turn_intensity",
-      "wall_turn_distance", "zigzag_angle"},
+      "wall_turn_distance", "zigzag_angle", "display"},
       std::move(params) }
   , m_mode{Mode::Initializing}
   , m_running{false}
@@ -24,7 +25,8 @@ Driver::Driver(std::vector<IConfigurable::Param>&& params)
   , m_turnIntensity{std::stof(getParam("turn_intensity"))}
   , m_zigzag_angle{std::stof(getParam("zigzag_angle"))*3.141592654f/180.f}
   , m_wallTurnDistance{std::stof(getParam("wall_turn_distance"))}
-  , m_movementDistance{0.f} {
+  , m_movementDistance{0.f}
+  , m_display{getParam("display") == "true"} {
 }
 
 void Driver::setRobot(std::shared_ptr<iRobot>& bot) {
@@ -150,6 +152,12 @@ void Driver::update() {
             << std::endl;
         }
       }
+    }
+
+    if(m_display) {
+      cv::Mat image(600, 600, CV_8UC3, cv::Scalar(0, 0, 0));
+      draw(image, 200.f);
+      imshow("Driver", image);
     }
   }
 }

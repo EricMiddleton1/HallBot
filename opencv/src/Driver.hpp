@@ -91,4 +91,6 @@ private:
 
   std::deque<Movement> m_motion;
   float m_movementDistance;
+
+  bool m_display;
 };

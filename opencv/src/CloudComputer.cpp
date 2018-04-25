@@ -5,7 +5,8 @@
 #include <numeric>
 
 CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
-    : IConfigurable{{"regression_type"}, std::move(params)}, regression_type{std::stof(getParam("regression_type"))}, how_recent{std::stof(getParam("how_recent"))}, theta{std::stof(getParam("theta"))}, auto_adjust_angle{std::stof(getParam("auto_adjust_angle"))}
+    : IConfigurable{{"regression_type", "display"}, std::move(params)}, regression_type{std::stof(getParam("regression_type"))}, how_recent{std::stof(getParam("how_recent"))}, theta{std::stof(getParam("theta"))}, auto_adjust_angle{std::stof(getParam("auto_adjust_angle"))}
+    , m_display{getParam("display") == "true"}
 {
   theta = (theta * PI) / 180.0;
   w = 500;
@@ -252,7 +253,9 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   displayCamera();
   //std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
   // Display
-  imshow(hallway_window, hallway_image);
+  if(m_display) {
+    imshow(hallway_window, hallway_image);
+  }
 }
 
 void CloudComputer::curHallwayHistogram()

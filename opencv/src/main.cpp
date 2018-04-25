@@ -76,7 +76,6 @@ int main(void)
   //Set PID setpoint
   steerPID->set(0.f);
 
-  cv::Mat track(600, 600, CV_8UC3, cv::Scalar(255, 255, 255));
   cv::Vec2f lastBotPos = {0.f, 0.f};
 
   //Wait to start until play button pressed
@@ -161,12 +160,6 @@ int main(void)
         driver->posInHallway(hallPos);
         driver->hallwayAngle(hallwayAngle);
         driver->setDistanceToHallwayEnd(distToHallwayEnd);
-
-
-        track.setTo(cv::Scalar(0, 0, 0));
-        driver->draw(track, 200.f);
-
-        imshow("HallBot", track);
       }
     }
 

@@ -105,4 +105,6 @@ private:
 
   void makeGreenLine();
   void displayCamera();
+
+  bool m_display;
 };
