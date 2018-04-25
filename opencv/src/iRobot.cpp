@@ -32,8 +32,11 @@ iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
 }
 
 iRobot::~iRobot() {
+	std::cout << "[Info] iRobot::~iRobot" << std::endl;
   ioWork.reset();
+	ioService.stop();
   asyncThread.join();
+	std::cout << "[Info] iRobot::~iRobot Complete" << std::endl;
 }
 
 void iRobot::start() {

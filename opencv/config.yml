@@ -1,8 +1,8 @@
 video_device:
-  name:       video file
-  file:       ../videos/coover_sidetoside.mp4
+  name:       raspicam
   color_mode: bw
-  max_height: 480
+  width:      640
+  height:     480
 
 edge_detector:
   low_threshold:    50
@@ -11,8 +11,8 @@ edge_detector:
 
 slam:
   vocab_file:       ORB_SLAM2/Vocabulary/ORBvoc.bin
-  config_file:      slam_config_phone.yml
-  visualizer:       true
+  config_file:      slam_config_pi.yml
+  visualizer:       false
 
 hough_transform:
   rho:                  1
@@ -43,13 +43,13 @@ robot:
 cloud_comp:
   regression_type: 2
   how_recent: 900
-  theta: 0
+  theta: 15
   auto_adjust_angle: 1
 
 driver:
   init_speed:            50
   tracking_speed:        150
   retracing_speed:       50
-  turn_intensity:        50
-  wall_turn_distance:    0.5
-  zigzag_angle:          45
+  turn_intensity:        0.2
+  wall_turn_distance:    0.3
+  zigzag_angle:          30

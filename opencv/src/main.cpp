@@ -154,7 +154,7 @@ int main(void)
         float distToHallwayEnd = cloudComp->distToFacingWall();
         auto hallPos = -cloudComp->getHallPosition()[1];
 
-        //std::cout << hallPos << ", " << hallwayWidth << std::endl;
+        std::cout << hallPos << ", " << hallwayWidth << std::endl;
         
         driver->hallwayWidth(hallwayWidth);
         driver->posInHallway(hallPos);
@@ -190,7 +190,17 @@ int main(void)
     {
       cloudComp->display2D(slammer->getMap());
     }
+    //slammer->saveAllMapPoints();
+
+		if(bot && bot->getButtonPress()) {
+			std::cout << "[Info] Button pressed, ending program" << std::endl;
+			break;
+		}
   }
+
+	if(bot) {
+		bot->setWheels(0, 0);
+	}
 
   return 0;
 }
