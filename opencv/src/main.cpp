@@ -145,44 +145,25 @@ int main(void)
     if (bot)
     {
       auto botPos = bot->getPosition();
-      std::cout << botPos << std::endl;
 
       auto hallwayLine = cloudComp->getGreenLine();
 
       if (hallwayLine[0] != 0.f)
       {
         float hallwayAngle = cloudComp->getGreenTheta();
-        float hallwayWidth = 1.5f;
-        float distToHallwayEnd = 2.f;
+        float hallwayWidth = -cloudComp->getWidth();
+        float distToHallwayEnd = cloudComp->distToFacingWall();
+        auto hallPos = -cloudComp->getHallPosition()[1];
 
-        //std::cout << "[Info] Hallway theta: " << hallwayAngle*180.f/3.14159f << std::endl;
+        //std::cout << hallPos << ", " << hallwayWidth << std::endl;
         
-        float posInHallway = distanceToLine(hallwayLine, botPos);
-        float botRayAngle = std::atan2(botPos[1], botPos[0]);
-        posInHallway *= (botRayAngle < hallwayAngle) ? 1.f : -1.f;
-
-        posInHallway *= bot->getCameraScale();
-
         driver->hallwayWidth(hallwayWidth);
-        driver->posInHallway(posInHallway);
+        driver->posInHallway(hallPos);
         driver->hallwayAngle(hallwayAngle);
         driver->setDistanceToHallwayEnd(distToHallwayEnd);
 
-        //std::cout << "[Info] Bot Hallway Pos: " << posInHallway << std::endl;
 
-        float drawScale = 300.f / 2.f;
         track.setTo(cv::Scalar(0, 0, 0));
-
-        cv::Vec2f lineDir{hallwayLine[0], hallwayLine[1]},
-            linePt{hallwayLine[2], hallwayLine[3]};
-        cv::Vec2f pt1 = (linePt - 800 * lineDir), pt2 = (linePt + 800 * lineDir);
-        auto scaledPos = botPos * drawScale;
-        cv::Point botPt{scaledPos[0], -scaledPos[1]};
-        cv::Point offset{300, 500};
-
-        //drawHallway(track, hallwayLine, hallwayWidth, drawScale, offset);
-
-        //iRobot::draw(track, botPt + offset, bot->getAngle(), 10);
         driver->draw(track, 200.f);
 
         imshow("HallBot", track);

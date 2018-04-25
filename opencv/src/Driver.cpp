@@ -127,12 +127,10 @@ void Driver::update() {
       }
       else if(m_hallwayWidth != 0.f) {
         auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
-        auto distFromLeft = m_hallwayWidth/2.f - m_hallwayPos,
+        auto distFromLeft = m_hallwayPos,
           distFromRight = m_hallwayWidth - distFromLeft;
-/*
         std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
           << distFromRight << std::endl;
-					*/
 /*
         std::cout << "[Info] Angle in hallway: " << angleInHallway*180.f/3.14159f
           << std::endl;
@@ -285,7 +283,7 @@ void Driver::draw(cv::Mat& image, float scale) const {
   cv::line(image, {leftPos, wallPos}, {rightPos, wallPos}, cv::Scalar(0, 0, 255), 2);
 
   //Draw robot
-  int botX = (width/2.f + scale*m_hallwayPos), botY = baseY;
+  int botX = (width/2.f + scale*(m_hallwayPos - m_hallwayWidth/2.f)), botY = baseY;
   float botRadius = 0.33f/2.f, angle = m_bot->getAngle() - m_hallwayAngle;
   int dx = (scale*botRadius*std::sin(-angle)),
     dy = (scale*botRadius*std::cos(-angle));

@@ -250,7 +250,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   drawLine(hallway_image, greenline, 1, cv::Scalar(0, 255, 0));
   // display camera
   displayCamera();
-  std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
+  //std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
   // Display
   imshow(hallway_window, hallway_image);
 }
