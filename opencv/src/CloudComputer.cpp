@@ -11,7 +11,7 @@ CloudComputer::CloudComputer(std::vector<IConfigurable::Param> &&params)
   w = 500;
   // Create black empty images
   hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
-  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC3);
+  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1);
   wall_alert = false;
   enough_pts_already = false;
   adjusted_3d = false;
@@ -250,7 +250,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   drawLine(hallway_image, greenline, 1, cv::Scalar(0, 255, 0));
   // display camera
   displayCamera();
-  //std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
+  std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
   // Display
   imshow(hallway_window, hallway_image);
 }
@@ -274,7 +274,13 @@ void CloudComputer::curHallwayHistogram()
     // bw_hallway_image.at<int>(p) = cv::Vec3b(255, 255, 255); // FUCK THIS SHIT
     // bw_hallway_image.at<int>(p.x, p.y) = 1;
     //REVIEW
-    addCircle(bw_hallway_image, p, 255);
+    // addCircle(bw_hallway_image, p, 255);
+    circle(bw_hallway_image,
+         p,
+         0.1,
+         cv::Scalar(255),
+         -1,
+         8);
   }
   // rotate image 90 counterclockwise
   // cv::rotate(bw_hallway_image, bw_hallway_image, 0);
@@ -362,7 +368,15 @@ float CloudComputer::distToFacingWall()
     cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
     pt_i = rot_matrix * pt_i;
     cv::Point p = cv::Point(convertPoint2D(pt_i.at<float>(0), 0), convertPoint2D(pt_i.at<float>(2), 1));
-    bw_hallway_image.at<cv::Vec3b>(p) = cv::Vec3b(255, 255, 255);
+    // bw_hallway_image.at<cv::Vec3b>(p) = cv::Vec3b(255, 255, 255);
+    //REVIEW
+    // bw_hallway_image.at<int>(p.x, p.y) = 1;
+    circle(bw_hallway_image,
+      p,
+      0.1,
+      cv::Scalar(255),
+      -1,
+      8);
   }
   // get average
   std::vector<int> proj = getProjection(bw_hallway_image);
