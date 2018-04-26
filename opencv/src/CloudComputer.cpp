@@ -258,15 +258,16 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
 
 void CloudComputer::hallwayDetector()
 {
+  cv::Mat new_img = bw_hallway_image.clone();
   cv::Mat structuring_elem = (cv::Mat_<int>(3, 3) << 0, 1, 0,
                               1, 1, 1,
                               0, 1, 0);
-  dilate(bw_hallway_image, bw_hallway_image, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1, 1, 1);
-  erode(bw_hallway_image, bw_hallway_image, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 2, 1, 1);
-  dilate(bw_hallway_image, bw_hallway_image, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1, 1, 1);
+  dilate(new_img, new_img, cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(5, 5)), cv::Point(-1, -1), 1, 1, 1);
+  erode(new_img, new_img, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 2, 1, 1);
+  dilate(new_img, new_img, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1, 1, 1);
   char hallway_window[] = "HALLWAY DETECTOR";
-  imshow(hallway_window, bw_hallway_image);
-  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1); // reset image
+  imshow(hallway_window, new_img);
+  // new_img = cv::Mat::zeros(w, w, CV_8UC1); // reset image
 }
 
 void CloudComputer::curHallwayHistogram()
@@ -290,7 +291,7 @@ void CloudComputer::curHallwayHistogram()
   int average = sum / total;
   // char hist_window[] = "WIDTH HISTOGRAM YO";
   // imshow(hist_window, bw_hallway_image);
-  int cutoff = average; //toggle if necessary
+  int cutoff = average + (average / 2); //toggle if necessary
   // left wall
   left_wall = 0;
   int i = proj.size() - 1;
@@ -316,8 +317,19 @@ void CloudComputer::curHallwayHistogram()
   }
   //REVIEW
   // correct wall locations...
+  int temp = left_wall;
+  left_wall = right_wall;
+  right_wall = temp;
   // left_wall = w - left_wall;
   // right_wall = w - right_wall;
+  //CHECK RANGE
+  if(left_wall > w/2) {
+    left_wall = w/2;
+  }
+  if(right_wall < w/2) {
+    right_wall = w/2;
+  }
+
   // display walls
   cv::Vec4f left_line = cv::Vec4f(0, 1, left_wall, 5);
   drawLine(hallway_image, left_line, 1, cv::Vec3b(10, 255, 255));
