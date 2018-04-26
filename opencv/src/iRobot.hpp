@@ -29,6 +29,8 @@ public:
   void setCameraPose(const cv::Vec2f&, float angle);
   void setCameraAngle(float angle);
 
+	void resetCameraScaler();
+	bool hasCameraScale() const;
   float getCameraScale() const;
   
   bool getButtonPress() const;
@@ -87,7 +89,8 @@ private:
 
   cv::Vec2f pos;
   float angle;
-  float distAccum, cameraScale;
+  float botDistAccum, camDistAccum, cameraScale;
+	size_t cameraScaleCount, cameraScaleCountMax;
 
   bool buttonState;
   mutable bool buttonPress;

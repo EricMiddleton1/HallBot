@@ -4,10 +4,11 @@
 #include <iostream>
 
 #include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 
 Driver::Driver(std::vector<IConfigurable::Param>&& params)
   : IConfigurable{ {"init_speed", "tracking_speed", "retracing_speed", "turn_intensity",
-      "wall_turn_distance", "zigzag_angle"},
+      "wall_turn_distance", "zigzag_angle", "display"},
       std::move(params) }
   , m_mode{Mode::Initializing}
   , m_running{false}
@@ -24,7 +25,8 @@ Driver::Driver(std::vector<IConfigurable::Param>&& params)
   , m_turnIntensity{std::stof(getParam("turn_intensity"))}
   , m_zigzag_angle{std::stof(getParam("zigzag_angle"))*3.141592654f/180.f}
   , m_wallTurnDistance{std::stof(getParam("wall_turn_distance"))}
-  , m_movementDistance{0.f} {
+  , m_movementDistance{0.f}
+  , m_display{getParam("display") == "true"} {
 }
 
 void Driver::setRobot(std::shared_ptr<iRobot>& bot) {
@@ -67,6 +69,10 @@ float Driver::hallwayWidth() const {
 }
 
 void Driver::hallwayWidth(float width) {
+	if(m_hallwayWidth == 0 && width != 0 && m_mode == Mode::Tracking) {
+		startTurn(m_zigzag_angle);
+	}
+
   m_hallwayWidth = width;
 }
 
@@ -151,6 +157,12 @@ void Driver::update() {
         }
       }
     }
+
+    if(m_display) {
+      cv::Mat image(300, 400, CV_8UC3, cv::Scalar(0, 0, 0));
+      draw(image, 100.f);
+      imshow("Driver", image);
+    }
   }
 }
 
@@ -181,7 +193,12 @@ void Driver::startMode() {
     break;
 
     case Mode::Tracking:
-      setMotion(1.f, 1.f);
+			if(m_moveState == MoveState::Forward) {
+	      setMotion(1.f, 1.f);
+			}
+			else {
+				setMotion(m_prevLeft, m_prevRight);
+			}
     break;
 
     case Mode::Retracing:
@@ -218,6 +235,9 @@ bool Driver::startRetrace() {
   }
   else {
     auto& movement = m_motion.back();
+
+		m_prevLeft = movement.left;
+		m_prevRight = movement.right;
 
     std::cout << "[Info] Driver: Starting retrace of movement ("
       << movement.left << ", " << movement.right << ")" << std::endl;

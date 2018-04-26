@@ -76,7 +76,6 @@ int main(void)
   //Set PID setpoint
   steerPID->set(0.f);
 
-  cv::Mat track(600, 600, CV_8UC3, cv::Scalar(255, 255, 255));
   cv::Vec2f lastBotPos = {0.f, 0.f};
 
   //Wait to start until play button pressed
@@ -130,7 +129,12 @@ int main(void)
 
       if (bot)
       {
-        bot->setCameraPose(cameraPos, angle);
+				if(slammer->getTrackingState() == ORB_SLAM2::Tracking::OK) {
+        	bot->setCameraPose(cameraPos, angle);
+				}
+				else if(!bot->hasCameraScale()) {
+					bot->resetCameraScaler();
+				}
       }
 
       //Update cloud computer with current camera position
@@ -142,31 +146,26 @@ int main(void)
         */
     }
 
-    if (bot)
+    if (bot && bot->hasCameraScale())
     {
       auto botPos = bot->getPosition();
+			auto cameraScale = bot->getCameraScale();
 
       auto hallwayLine = cloudComp->getGreenLine();
 
       if (hallwayLine[0] != 0.f)
       {
         float hallwayAngle = cloudComp->getGreenTheta();
-        float hallwayWidth = -cloudComp->getWidth();
-        float distToHallwayEnd = cloudComp->distToFacingWall();
-        auto hallPos = -cloudComp->getHallPosition()[1];
+        float hallwayWidth = -cloudComp->getWidth() * cameraScale;
+        float distToHallwayEnd = cloudComp->distToFacingWall() * cameraScale;
+        auto hallPos = -cloudComp->getHallPosition()[1] * cameraScale;
 
-        //std::cout << hallPos << ", " << hallwayWidth << std::endl;
+        std::cout << hallPos << ", " << hallwayWidth << ", " << cameraScale << std::endl;
         
         driver->hallwayWidth(hallwayWidth);
         driver->posInHallway(hallPos);
         driver->hallwayAngle(hallwayAngle);
         driver->setDistanceToHallwayEnd(distToHallwayEnd);
-
-
-        track.setTo(cv::Scalar(0, 0, 0));
-        driver->draw(track, 200.f);
-
-        imshow("HallBot", track);
       }
     }
 
@@ -197,7 +196,17 @@ int main(void)
     {
       cloudComp->display2D(slammer->getMap());
     }
+    //slammer->saveAllMapPoints();
+
+		if(bot && bot->getButtonPress()) {
+			std::cout << "[Info] Button pressed, ending program" << std::endl;
+			break;
+		}
   }
+
+	if(bot) {
+		bot->setWheels(0, 0);
+	}
 
   return 0;
 }
