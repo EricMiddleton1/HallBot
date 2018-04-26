@@ -74,7 +74,7 @@ private:
   //Array of Points used for regression
   vector<cv::Point3f> pts_vector_3d;
   vector<cv::Point> pts_vector;
-  vector<cv::Point> raw_pts_vector; // REVIEW
+  vector<cv::Point> raw_pts_vector; // REVIEW does this even exist anymore??
   vector<cv::Mat> raw_mat_vector;
 
   // auto rotate 3D line
@@ -101,8 +101,8 @@ private:
   void updatePointVectors(cv::Mat pos);
   void clearPointVectors();
   void steerPoints();
-  std::vector<int> getProjection(const cv::Mat &image);
-
+  std::vector<int> getProjection(const cv::Mat &image, int vertical);
+  void hallwayDetector();
   void makeGreenLine();
   void displayCamera();
 };

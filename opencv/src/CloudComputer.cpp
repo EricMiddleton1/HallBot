@@ -76,13 +76,14 @@ float CloudComputer::undoConvertPoint2D(int num, int axis)
   }
   else
   {
-    auto output = ((num - (9 * w / 10)) / 100.f);
+    auto output = ((num - (9.5 * w / 10)) / 100.f);
     return output;
   }
 }
 
 void CloudComputer::displayPoints()
 {
+  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1); // reset image
   float green_theta = getGreenTheta();
   // rot matrix based on green theta
   cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
@@ -94,6 +95,7 @@ void CloudComputer::displayPoints()
     pt_i = rot_matrix * pt_i;
     cv::Point p = cv::Point(convertPoint2D(pt_i.at<float>(0), 0), convertPoint2D(pt_i.at<float>(2), 1));
     addCircle(hallway_image, p, 255);
+    circle(bw_hallway_image, p, 0.1, cv::Scalar(255), -1, 8);
   }
 }
 
@@ -239,10 +241,7 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   //regression line
   makeGreenLine();
   // width histogram
-  //FIXME:
-  //REVIEW THIS
-  curHallwayHistogram(); //HACK
-  //REVIEW THIS
+  curHallwayHistogram();
   // display all 2D pts
   displayPoints();
   // new style green reference line
@@ -250,42 +249,29 @@ void CloudComputer::display2D(ORB_SLAM2::Map *total_map)
   drawLine(hallway_image, greenline, 1, cv::Scalar(0, 255, 0));
   // display camera
   displayCamera();
-  //std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
+  distToFacingWall();
+  // hallwayDetector(); // IMPORTANT: must go after dist to facing wall
+  // std::cout << "[dist to facing wall]: " << distToFacingWall() << std::endl;
   // Display
   imshow(hallway_window, hallway_image);
 }
 
+void CloudComputer::hallwayDetector()
+{
+  cv::Mat structuring_elem = (cv::Mat_<int>(3, 3) << 0, 1, 0,
+                              1, 1, 1,
+                              0, 1, 0);
+  dilate(bw_hallway_image, bw_hallway_image, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1, 1, 1);
+  erode(bw_hallway_image, bw_hallway_image, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 2, 1, 1);
+  dilate(bw_hallway_image, bw_hallway_image, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1, 1, 1);
+  char hallway_window[] = "HALLWAY DETECTOR";
+  imshow(hallway_window, bw_hallway_image);
+  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1); // reset image
+}
+
 void CloudComputer::curHallwayHistogram()
 {
-  // reset image
-  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1);
-  float green_theta = getGreenTheta();
-  // rot matrix based on green theta
-  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
-                        0, 1, 0,
-                        -sin(green_theta), 0, cos(green_theta));
-  for (int i = 0; i < raw_mat_vector.size(); i++)
-  {
-    // Get each raw mat vector point and create a mat
-    cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
-    cv::Mat post_rotation = rot_matrix * pt_i;
-    // pt_i = rot_matrix * pt_i;
-    cv::Point p = cv::Point(convertPoint2D(post_rotation.at<float>(2), 1), convertPoint2D(post_rotation.at<float>(0), 0));
-    // bw_hallway_image.at<int>(p) = cv::Vec3b(255, 255, 255); // FUCK THIS SHIT
-    // bw_hallway_image.at<int>(p.x, p.y) = 1;
-    //REVIEW
-    // addCircle(bw_hallway_image, p, 255);
-    circle(bw_hallway_image,
-         p,
-         0.1,
-         cv::Scalar(255),
-         -1,
-         8);
-  }
-  // rotate image 90 counterclockwise
-  // cv::rotate(bw_hallway_image, bw_hallway_image, 0);
-  // get average
-  std::vector<int> proj = getProjection(bw_hallway_image);
+  std::vector<int> proj = getProjection(bw_hallway_image, 0);
   int sum = std::accumulate(proj.begin(), proj.end(), 0);
   int total = std::count_if(proj.begin(), proj.end(), [](int value) {
     if (value)
@@ -302,12 +288,9 @@ void CloudComputer::curHallwayHistogram()
     return;
   }
   int average = sum / total;
-
   // char hist_window[] = "WIDTH HISTOGRAM YO";
   // imshow(hist_window, bw_hallway_image);
-
-  int cutoff = average + (average / 2);
-
+  int cutoff = average; //toggle if necessary
   // left wall
   left_wall = 0;
   int i = proj.size() - 1;
@@ -331,6 +314,8 @@ void CloudComputer::curHallwayHistogram()
     }
     i++;
   }
+  //REVIEW
+  // correct wall locations...
   // left_wall = w - left_wall;
   // right_wall = w - right_wall;
   // display walls
@@ -340,46 +325,32 @@ void CloudComputer::curHallwayHistogram()
   drawLine(hallway_image, right_line, 1, cv::Vec3b(10, 255, 255));
 }
 
-std::vector<int> CloudComputer::getProjection(const cv::Mat &image)
+std::vector<int> CloudComputer::getProjection(const cv::Mat &image, int vertical)
 {
 
-  std::vector<int> projection(image.rows);
-
-  for (unsigned int i = 0; i < projection.size(); ++i)
+  if (vertical)
   {
-    projection[i] = cv::countNonZero(image(cv::Rect(0, i, image.cols, 1)));
+    std::vector<int> projection(image.rows);
+    for (unsigned int i = 0; i < projection.size(); ++i)
+    {
+      projection[i] = cv::countNonZero(image(cv::Rect(0, i, image.cols, 1)));
+    }
+    return projection;
   }
-
-  return projection;
+  else // horizontal
+  {
+    std::vector<int> projection(image.cols);
+    for (unsigned int i = 0; i < projection.size(); ++i)
+    {
+      projection[i] = cv::countNonZero(image(cv::Rect(i, 0, 1, image.rows)));
+    }
+    return projection;
+  }
 }
 
 float CloudComputer::distToFacingWall()
 {
-  // reset image
-  bw_hallway_image = cv::Mat::zeros(w, w, CV_8UC1);
-  float green_theta = getGreenTheta();
-  // rot matrix based on green theta
-  cv::Mat rot_matrix = (cv::Mat_<float>(3, 3) << cos(green_theta), 0, sin(green_theta),
-                        0, 1, 0,
-                        -sin(green_theta), 0, cos(green_theta));
-
-  for (int i = 0; i < raw_mat_vector.size(); i++)
-  {
-    cv::Mat pt_i = (cv::Mat_<float>(3, 1) << raw_mat_vector.at(i).at<float>(0), raw_mat_vector.at(i).at<float>(1), raw_mat_vector.at(i).at<float>(2));
-    pt_i = rot_matrix * pt_i;
-    cv::Point p = cv::Point(convertPoint2D(pt_i.at<float>(0), 0), convertPoint2D(pt_i.at<float>(2), 1));
-    // bw_hallway_image.at<cv::Vec3b>(p) = cv::Vec3b(255, 255, 255);
-    //REVIEW
-    // bw_hallway_image.at<int>(p.x, p.y) = 1;
-    circle(bw_hallway_image,
-      p,
-      0.1,
-      cv::Scalar(255),
-      -1,
-      8);
-  }
-  // get average
-  std::vector<int> proj = getProjection(bw_hallway_image);
+  std::vector<int> proj = getProjection(bw_hallway_image, 1);
   int sum = std::accumulate(proj.begin(), proj.end(), 0);
   int total = std::count_if(proj.begin(), proj.end(), [](int value) {
     if (value)
@@ -396,7 +367,6 @@ float CloudComputer::distToFacingWall()
     return -1;
   }
   int average = sum / total;
-
   // loop from the back ;)
   bool found_wall = false;
   int k = 0;
@@ -405,12 +375,21 @@ float CloudComputer::distToFacingWall()
     if (proj[k] > average)
     {
       // convert to raw coord
-      // cv::Vec4f line = cv::Vec4f(1, 0, 5, k);
-      // drawLine(hallway_image, line, 1, cv::Vec3b(255, 0, 0));
-      line(hallway_image, cv::Point(static_cast<int>(left_wall), static_cast<int>(k)),
-           cv::Point(static_cast<int>(right_wall), static_cast<int>(k)), cv::Scalar(255, 0, 0), 1, 8, 0);
-      float raw_y = (k - (3.f * w / 4.f)) / 50.f;
-      // float raw_y = ((3.f * w / 4.f) - (k / 50.f));
+      // std::cout << k << " " << left_wall << " " << right_wall << std::endl;
+      // calculate start point
+      cv::Point startPoint;
+      startPoint.x = left_wall;
+      startPoint.y = k;
+      // calculate end point
+      cv::Point endPoint;
+      endPoint.x = right_wall;
+      endPoint.y = k;
+      cv::line(hallway_image, startPoint, endPoint, cv::Scalar(255, 0, 0), 1, 8, 0);
+      // cv::line(bw_hallway_image, cv::Point(static_cast<int>(left_wall), static_cast<int>(k)),
+      //      cv::Point(static_cast<int>(right_wall), static_cast<int>(k)), cv::Scalar(255), 1, 8, 0);
+      // float raw_y = (k - (3.f * w / 4.f)) / 50.f;
+      //HACK PLS DOUBLE CHECK
+      float raw_y = undoConvertPoint2D(k, 1);
       // rotate camera
       float green_theta = getGreenTheta();
       // rot matrix based on green theta
@@ -467,12 +446,16 @@ float CloudComputer::getGreenTheta()
   //Turn into radians
   green_theta = green_theta * PI / 180;
   // if first green theta calculated:
-  if(stored_green_theta == -1000) {
+  if (stored_green_theta == -1000)
+  {
     stored_green_theta = green_theta;
-  } else {
+  }
+  else
+  {
     // filter
-    stored_green_theta = (stored_green_theta * (1 - (green_theta_count/100.f))) + (green_theta * (green_theta_count/100.f));
-    if (green_theta_count > 1) {
+    stored_green_theta = (stored_green_theta * (1 - (green_theta_count / 100.f))) + (green_theta * (green_theta_count / 100.f));
+    if (green_theta_count > 5)
+    {
       green_theta_count -= 0.5f;
     }
   }

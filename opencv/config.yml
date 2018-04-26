@@ -1,6 +1,6 @@
 video_device:
   name:       video file
-  file:       ../videos/coover_sidetoside.mp4
+  file:       ../../videos/calibrated/one.mp4
   color_mode: bw
   max_height: 480
 
