@@ -81,6 +81,7 @@ private:
   float m_hallwayPos;
   float m_hallwayAngle;
   float m_distToHallwayEnd;
+  float m_forcedHallwayWidth;
 
   MoveState m_moveState;
   float m_desiredAngle;

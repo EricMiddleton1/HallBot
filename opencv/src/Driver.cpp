@@ -16,6 +16,7 @@ Driver::Driver(std::vector<IConfigurable::Param>&& params)
   , m_hallwayPos{0.f}
   , m_hallwayAngle{0.f}
   , m_distToHallwayEnd{0.f}
+  , m_forcedHallwayWidth{std::stof(getParam("forced_hallway_width", "0"))}
   , m_moveState{MoveState::Forward}
   , m_desiredAngle{0.f}
   , m_turnDir{0}
@@ -27,6 +28,11 @@ Driver::Driver(std::vector<IConfigurable::Param>&& params)
   , m_wallTurnDistance{std::stof(getParam("wall_turn_distance"))}
   , m_movementDistance{0.f}
   , m_display{getParam("display") == "true"} {
+
+  if(m_forcedHallwayWidth != 0.f) {
+    std::cout << "[Info] Using forced hallway width: " << m_forcedHallwayWidth
+      << std::endl;
+  }
 }
 
 void Driver::setRobot(std::shared_ptr<iRobot>& bot) {
@@ -98,6 +104,19 @@ void Driver::setDistanceToHallwayEnd(float dist) {
 
 void Driver::update() {
   if(m_running) {
+    float scale = 1.f;
+
+    if(m_forcedHallwayWidth != 0.f && m_hallwayWidth != 0.f) {
+      scale = m_forcedHallwayWidth / m_hallwayWidth;
+    }
+
+    float scaledHallwayWidth = scale * m_hallwayWidth,
+      scaledHallwayPos = scale * m_hallwayPos,
+      scaledDistToHallwayEnd = scale * m_distToHallwayEnd;
+
+      std::cout << "[Info] HallwayWidth, HallwayPos: " << scaledHallwayWidth
+        << ", " << scaledHallwayPos << std::endl;
+
     //Accumulate distance traveled
     m_movementDistance += m_bot->getDistance();
 /*
@@ -131,10 +150,10 @@ void Driver::update() {
           stopTurn();
         }
       }
-      else if(m_hallwayWidth != 0.f) {
+      else if(scaledHallwayWidth != 0.f) {
         auto angleInHallway = m_bot->getAngle() - m_hallwayAngle;
-        auto distFromLeft = m_hallwayPos,
-          distFromRight = m_hallwayWidth - distFromLeft;
+        auto distFromLeft = scaledHallwayPos,
+          distFromRight = scaledHallwayWidth - distFromLeft;
         std::cout << "[Info] Distance from left, right: " << distFromLeft << ", "
           << distFromRight << std::endl;
 /*
@@ -159,8 +178,8 @@ void Driver::update() {
     }
 
     if(m_display) {
-      cv::Mat image(300, 400, CV_8UC3, cv::Scalar(0, 0, 0));
-      draw(image, 100.f);
+      cv::Mat image(400, 600, CV_8UC3, cv::Scalar(0, 0, 0));
+      draw(image, 200.f);
       imshow("Driver", image);
     }
   }
@@ -292,18 +311,28 @@ void Driver::draw(cv::Mat& image, float scale) const {
 
   int baseY = 3*height/4;
 
+  float wScale = 1.f;
+  if(m_forcedHallwayWidth != 0.f && m_hallwayWidth != 0.f) {
+    wScale = m_forcedHallwayWidth / m_hallwayWidth;
+  }
+
+  float scaledHallwayWidth = wScale * m_hallwayWidth,
+    scaledHallwayPos = wScale * m_hallwayPos,
+    scaledDistToHallwayEnd = wScale * m_distToHallwayEnd;
+
   //Draw hallway walls
-  int leftPos = (width/2.f - scale*m_hallwayWidth/2.f),
-    rightPos = (width/2.f + scale*m_hallwayWidth/2.f);
+  int leftPos = (width/2.f - scale*scaledHallwayWidth/2.f),
+    rightPos = (width/2.f + scale*scaledHallwayWidth/2.f);
   cv::line(image, {leftPos, 0}, {leftPos, height}, cv::Scalar(255, 0, 0), 2);
   cv::line(image, {rightPos, 0}, {rightPos, height}, cv::Scalar(255, 0, 0), 2);
 
   //Draw upcoming wall
-  int wallPos = baseY - (scale*m_distToHallwayEnd);
+  int wallPos = baseY - (scale*scaledDistToHallwayEnd);
   cv::line(image, {leftPos, wallPos}, {rightPos, wallPos}, cv::Scalar(0, 0, 255), 2);
 
   //Draw robot
-  int botX = (width/2.f + scale*(m_hallwayPos - m_hallwayWidth/2.f)), botY = baseY;
+  int botX = (width/2.f + scale*(scaledHallwayPos - scaledHallwayWidth/2.f)),
+    botY = baseY;
   float botRadius = 0.33f/2.f, angle = m_bot->getAngle() - m_hallwayAngle;
   int dx = (scale*botRadius*std::sin(-angle)),
     dy = (scale*botRadius*std::cos(-angle));

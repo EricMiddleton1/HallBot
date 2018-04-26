@@ -105,6 +105,10 @@ float iRobot::getCameraScale() const {
 	return (cameraScaleCount > 0) ? (cameraScale / cameraScaleCount) : 1.f;
 }
 
+bool iRobot::isConnected() const {
+  return port.connected();
+}
+
 void iRobot::setCameraPose(const cv::Vec2f& p, float a) {
   static cv::Vec2f lastCameraPos = {0.f, 0.f};
 

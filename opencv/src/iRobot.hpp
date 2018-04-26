@@ -34,6 +34,7 @@ public:
   float getCameraScale() const;
   
   bool getButtonPress() const;
+  bool isConnected() const;
 
   bool retraceStep();
 

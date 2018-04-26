@@ -146,7 +146,7 @@ int main(void)
         */
     }
 
-    if (bot && bot->hasCameraScale())
+    if (bot && (!bot->isConnected() || bot->hasCameraScale()))
     {
       auto botPos = bot->getPosition();
 			auto cameraScale = bot->getCameraScale();
@@ -160,7 +160,7 @@ int main(void)
         float distToHallwayEnd = cloudComp->distToFacingWall() * cameraScale;
         auto hallPos = -cloudComp->getHallPosition()[1] * cameraScale;
 
-        std::cout << hallPos << ", " << hallwayWidth << ", " << cameraScale << std::endl;
+        //std::cout << hallPos << ", " << hallwayWidth << ", " << cameraScale << std::endl;
         
         driver->hallwayWidth(hallwayWidth);
         driver->posInHallway(hallPos);
@@ -198,7 +198,7 @@ int main(void)
     }
     //slammer->saveAllMapPoints();
 
-		if(bot && bot->getButtonPress()) {
+		if(bot && bot->isConnected() && bot->getButtonPress()) {
 			std::cout << "[Info] Button pressed, ending program" << std::endl;
 			break;
 		}
