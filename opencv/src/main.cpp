@@ -129,7 +129,12 @@ int main(void)
 
       if (bot)
       {
-        bot->setCameraPose(cameraPos, angle);
+				if(slammer->getTrackingState() == ORB_SLAM2::Tracking::OK) {
+        	bot->setCameraPose(cameraPos, angle);
+				}
+				else if(!bot->hasCameraScale()) {
+					bot->resetCameraScaler();
+				}
       }
 
       //Update cloud computer with current camera position
@@ -141,20 +146,21 @@ int main(void)
         */
     }
 
-    if (bot)
+    if (bot && bot->hasCameraScale())
     {
       auto botPos = bot->getPosition();
+			auto cameraScale = bot->getCameraScale();
 
       auto hallwayLine = cloudComp->getGreenLine();
 
       if (hallwayLine[0] != 0.f)
       {
         float hallwayAngle = cloudComp->getGreenTheta();
-        float hallwayWidth = -cloudComp->getWidth();
-        float distToHallwayEnd = cloudComp->distToFacingWall();
-        auto hallPos = -cloudComp->getHallPosition()[1];
+        float hallwayWidth = -cloudComp->getWidth() * cameraScale;
+        float distToHallwayEnd = cloudComp->distToFacingWall() * cameraScale;
+        auto hallPos = -cloudComp->getHallPosition()[1] * cameraScale;
 
-        std::cout << hallPos << ", " << hallwayWidth << std::endl;
+        std::cout << hallPos << ", " << hallwayWidth << ", " << cameraScale << std::endl;
         
         driver->hallwayWidth(hallwayWidth);
         driver->posInHallway(hallPos);

@@ -69,6 +69,10 @@ float Driver::hallwayWidth() const {
 }
 
 void Driver::hallwayWidth(float width) {
+	if(m_hallwayWidth == 0 && width != 0 && m_mode == Mode::Tracking) {
+		startTurn(m_zigzag_angle);
+	}
+
   m_hallwayWidth = width;
 }
 
@@ -155,8 +159,8 @@ void Driver::update() {
     }
 
     if(m_display) {
-      cv::Mat image(600, 600, CV_8UC3, cv::Scalar(0, 0, 0));
-      draw(image, 200.f);
+      cv::Mat image(300, 400, CV_8UC3, cv::Scalar(0, 0, 0));
+      draw(image, 100.f);
       imshow("Driver", image);
     }
   }
@@ -189,7 +193,12 @@ void Driver::startMode() {
     break;
 
     case Mode::Tracking:
-      setMotion(1.f, 1.f);
+			if(m_moveState == MoveState::Forward) {
+	      setMotion(1.f, 1.f);
+			}
+			else {
+				setMotion(m_prevLeft, m_prevRight);
+			}
     break;
 
     case Mode::Retracing:
@@ -226,6 +235,9 @@ bool Driver::startRetrace() {
   }
   else {
     auto& movement = m_motion.back();
+
+		m_prevLeft = movement.left;
+		m_prevRight = movement.right;
 
     std::cout << "[Info] Driver: Starting retrace of movement ("
       << movement.left << ", " << movement.right << ")" << std::endl;

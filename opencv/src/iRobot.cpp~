@@ -16,8 +16,7 @@ iRobot::iRobot(std::vector<IConfigurable::Param>&& params)
   , drivenDistance{0.f}
   , pos{0.f, 0.f}
   , angle{0.f}
-  , botDistAccum{0.f}
-	,	camDistAccum{0.f}
+  , distAccum{0.f}
   , cameraScale{1.f}
 	,	cameraScaleCountMax{std::stoi(getParam("camera_scale_points"))}
 	,	cameraScaleCount{0}
@@ -92,8 +91,7 @@ void iRobot::resetCameraScaler() {
 	std::lock_guard<std::mutex> lock(mutex);
 
 	cameraScaleCount = 0;
-	botDistAccum = 0.f;
-	camDistAccum = 0.f;
+	distAccum = 0;
 }
 
 bool iRobot::hasCameraScale() const {
@@ -102,7 +100,7 @@ bool iRobot::hasCameraScale() const {
 
 float iRobot::getCameraScale() const {
   std::lock_guard<std::mutex> lock(mutex);
-	return (cameraScaleCount > 0) ? (cameraScale / cameraScaleCount) : 1.f;
+	return cameraScale;
 }
 
 void iRobot::setCameraPose(const cv::Vec2f& p, float a) {
@@ -114,19 +112,16 @@ void iRobot::setCameraPose(const cv::Vec2f& p, float a) {
     //Compute/update camera scale factor
     float cameraDist = dist(lastCameraPos, p);
     if(cameraDist != 0.f) {
-			camDistAccum += cameraDist;
       //Scale to convert from ORB-SLAM units to meters
-      float newCamScale = botDistAccum / cameraDist / 1000.f;
+      float newCamScale = distAccum / cameraDist / 1000.f;
       float alpha = 0.5f;
       cameraScale = alpha*newCamScale + (1.f-alpha)*cameraScale;
 
-			std::cout << "New scale, filtered scale: " << newCamScale << ", " << cameraScale
-				<< std::endl;
-
 			++cameraScaleCount;
     }
+    distAccum = 0.f;
   }
-  else if(!port.connected()) {
+  else {
     //Assume scale=1 when no encoder data is available
     cameraScale = 1.f;
   }
@@ -176,7 +171,7 @@ void iRobot::processSensorUpdate(const Sensors& sensors) {
   {
     std::lock_guard<std::mutex> lock(mutex);
 
-    botDistAccum += sensors.distance;
+    distAccum += sensors.distance;
     drivenDistance += sensors.distance;
 
     angle += sensors.angle * M_PI / 180.;
